@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#3b2a1a">
+<title>Congreso de Suelos · Control</title>
+<style>
+  :root{--bg:#f6f1ea;--ink:#2b2118;--muted:#7a6a5a;--brand:#5b3b22;--ok:#1f8a4c;--dup:#c98a00;--err:#c0392b;--card:#fff;--line:#e4d9cc;--pend:#2c3e50}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);-webkit-tap-highlight-color:transparent;user-select:none}
+  header{background:var(--brand);color:#fff;padding:8px 12px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:5}
+  header h1{font-size:15px;margin:0;flex:1;line-height:1.2}
+  header small{opacity:.8;font-weight:400}
+  .net{width:10px;height:10px;border-radius:50%;background:#2ecc71;flex:none}
+  .net.off{background:#e74c3c}
+  .pill{border-radius:10px;padding:1px 8px;font-size:12px;white-space:nowrap}
+  #queueBadge{background:#e67e22;color:#fff;display:none}
+  #latBadge{background:rgba(255,255,255,.18);color:#fff}
+  nav{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-bottom:1px solid var(--line)}
+  nav button{border:0;background:none;padding:12px 4px;font-size:14px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent}
+  nav button.active{color:var(--brand);border-bottom-color:var(--brand)}
+  main{padding:12px;max-width:520px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+  .row{display:flex;gap:8px;align-items:center}
+  label{font-size:13px;color:var(--muted);display:block;margin:8px 0 4px}
+  input,select{width:100%;padding:12px;font-size:16px;border:1px solid var(--line);border-radius:8px;background:#fff;user-select:text}
+  button.primary{width:100%;padding:14px;font-size:16px;font-weight:700;border:0;border-radius:10px;background:var(--brand);color:#fff}
+  button.ghost{padding:10px 14px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:14px}
+  .modeTitle{font-size:20px;font-weight:800;margin:0}
+  .listInfo{font-size:12px;color:var(--muted);margin-top:4px}
+  /* Display + teclado */
+  #dniDisplay{font-size:40px;font-weight:800;letter-spacing:4px;text-align:center;padding:12px 8px 4px;border:2px solid var(--brand);border-radius:12px;background:#fff;min-height:84px;font-variant-numeric:tabular-nums}
+  #dniDisplay.empty{color:#c9bcae;font-weight:600;font-size:22px;letter-spacing:0;line-height:56px}
+  #preview{display:block;font-size:14px;letter-spacing:0;font-weight:600;color:var(--muted);min-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #textDni{font-size:28px;font-weight:800;text-align:center;letter-spacing:2px;text-transform:uppercase}
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+  .pad button{font-size:30px;font-weight:700;padding:15px 0;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
+  .pad button:active{background:#eadfd2}
+  .pad .ok{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .pad .fn{font-size:20px;color:var(--muted)}
+  .opts{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:13px;color:var(--muted);gap:8px}
+  .opts label{display:flex;gap:6px;align-items:center;margin:0}
+  .opts input{width:18px;height:18px;flex:none}
+  .hist{list-style:none;padding:0;margin:0;font-size:14px}
+  .hist li{padding:8px 0;border-bottom:1px solid var(--line);display:flex;gap:8px}
+  .dot{width:10px;height:10px;border-radius:50%;margin-top:5px;flex:none}
+  .stat{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  .stat div{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center;font-size:14px}
+  .stat b{display:block;font-size:26px}
+  h3{font-size:14px;color:var(--muted);margin:4px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  #overlay{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;padding:24px;z-index:20;transition:background .15s}
+  #overlay .big{font-size:30px;font-weight:900;margin-bottom:12px;white-space:pre-line}
+  #overlay .name{font-size:26px;font-weight:800}
+  #overlay .sub{font-size:16px;opacity:.9;margin-top:8px}
+  #overlay .ms{position:absolute;top:14px;right:16px;font-size:13px;opacity:.8;font-variant-numeric:tabular-nums}
+  #overlay .tap{position:absolute;bottom:24px;opacity:.7;font-size:13px}
+  #undoBtn{margin-top:22px;padding:12px 22px;font-size:16px;font-weight:700;border:2px solid #fff;background:transparent;color:#fff;border-radius:10px;display:none}
+  .hidden{display:none!important}
+  .chk{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:15px}
+  .chk input{width:22px;height:22px}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="net" id="net"></span>
+  <h1>Congreso de Suelos <small id="hdrStaff"></small></h1>
+  <span class="pill" id="latBadge" title="Latencia promedio de los últimos registros">⏱ –</span>
+  <span class="pill" id="queueBadge"></span>
+  <button class="ghost" style="padding:6px 10px" onclick="show('config')">⚙</button>
+</header>
+
+<nav id="tabs">
+  <button data-mode="checkin" class="active">Asistencia</button>
+  <button data-mode="kit">Kit</button>
+  <button data-mode="register">Inscribir</button>
+  <button data-mode="stats">Resumen</button>
+</nav>
+
+<main>
+  <!-- CONFIG -->
+  <section id="view-config" class="hidden">
+    <div class="card">
+      <p class="modeTitle">Configuración</p>
+      <label>URL de la API (Apps Script /exec)</label>
+      <input id="cfgApi" placeholder="https://script.google.com/macros/s/.../exec">
+      <label>Clave</label>
+      <input id="cfgKey" type="password">
+      <label>Puerta asignada</label>
+      <select id="cfgPuerta">
+        <option value="1">Puerta 1</option><option value="2">Puerta 2</option><option value="3">Puerta 3</option>
+        <option value="4">Puerta 4</option><option value="5">Puerta 5</option><option value="0">Mesa de inscripción / Otro</option>
+      </select>
+      <label>Tu nombre</label>
+      <input id="cfgStaff" placeholder="Ej. Ana Torres">
+      <br><br>
+      <button class="primary" onclick="saveConfig()">Guardar y probar conexión</button>
+      <p id="cfgMsg" style="font-size:14px"></p>
+    </div>
+  </section>
+
+  <!-- INGRESO POR DNI (checkin / kit) -->
+  <section id="view-scan" class="hidden">
+    <div class="card">
+      <div class="row">
+        <p class="modeTitle" id="scanTitle" style="flex:1">Asistencia</p>
+        <select id="daySel" style="width:auto"></select>
+      </div>
+      <div class="listInfo" id="listInfo">Lista local: cargando…</div>
+    </div>
+
+    <div class="card">
+      <div id="dniDisplay" class="empty">Digite el DNI</div>
+      <span id="preview"></span>
+      <input id="textDni" class="hidden" autocomplete="off" autocapitalize="characters" placeholder="CE / PASAPORTE">
+      <div class="pad" id="pad">
+        <button>1</button><button>2</button><button>3</button>
+        <button>4</button><button>5</button><button>6</button>
+        <button>7</button><button>8</button><button>9</button>
+        <button class="fn" data-k="del">⌫</button><button>0</button><button class="ok" data-k="ok">OK</button>
+      </div>
+      <div class="opts">
+        <label><input type="checkbox" id="autoSend" checked> Enviar al completar 8 dígitos</label>
+        <button class="ghost" id="abcBtn" style="padding:6px 10px">ABC · CE/Pasaporte</button>
+      </div>
+      <div class="opts" id="kitOpt">
+        <label><input type="checkbox" id="withKit"> <b>Ingreso + Kit</b>&nbsp;(entregar kit en esta puerta)</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <b style="font-size:14px">Últimos registros</b>
+      <ul class="hist" id="hist"></ul>
+    </div>
+  </section>
+
+  <!-- REGISTER -->
+  <section id="view-register" class="hidden">
+    <div class="card" id="regForm">
+      <p class="modeTitle">Inscripción en sitio</p>
+      <label>DNI / CE / Pasaporte *</label>
+      <input id="rDni" autocomplete="off" inputmode="numeric">
+      <label>Nombres y apellidos *</label>
+      <input id="rNombre" autocomplete="off" style="text-transform:uppercase">
+      <label>Institución</label>
+      <input id="rInst" autocomplete="off">
+      <label>Correo</label>
+      <input id="rCorreo" type="email" autocomplete="off">
+      <label>Celular</label>
+      <input id="rCel" inputmode="tel" autocomplete="off">
+      <label class="chk"><input type="checkbox" id="rAsist" checked> Marcar asistencia de hoy</label>
+      <br>
+      <button class="primary" onclick="registerSubmit()">Inscribir</button>
+    </div>
+    <div class="card hidden" id="regDone">
+      <p class="modeTitle" id="regDoneTitle">Inscrito ✔</p>
+      <p id="regDoneName" style="font-weight:700;font-size:18px"></p>
+      <p style="font-size:15px;color:var(--muted)">Indíquele que su <b>DNI</b> es su llave de ingreso los 3 días.</p>
+      <br>
+      <button class="primary" onclick="resetRegister()">Nueva inscripción</button>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section id="view-stats" class="hidden">
+    <div class="card">
+      <div class="row"><p class="modeTitle" style="flex:1">Resumen en vivo</p><button class="ghost" onclick="loadStats()">↻</button></div>
+    </div>
+    <h3>Evento</h3>
+    <div class="stat" id="statGrid"></div>
+    <h3>Rendimiento de este celular</h3>
+    <div class="stat" id="perfGrid"></div>
+  </section>
+</main>
+
+<div id="overlay" onclick="hideOverlay()">
+  <div class="ms" id="ovMs"></div>
+  <div class="big" id="ovBig"></div>
+  <div class="name" id="ovName"></div>
+  <div class="sub" id="ovSub"></div>
+  <button id="undoBtn">↶ Deshacer (DNI mal digitado)</button>
+  <div class="tap">Toca para continuar</div>
+</div>
+
+<!-- Config inyectada por doGet() cuando la app se sirve desde Apps Script (HtmlService).
+     Si el archivo se abre fuera de Apps Script, esto no es JSON válido y se ignora. -->
+<script id="boot" type="application/json"><?!= boot ?></script>
+<script>
+/* =====================================================================
+   ESTADO Y CONFIG
+   ===================================================================== */
+const LS = { cfg: 'cs_cfg', queue: 'cs_queue', day: 'cs_day', auto: 'cs_auto', kit: 'cs_withkit', list: 'cs_list' };
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+let cfg = store.get(LS.cfg, { api: '', key: '', staff: '', nombre: '', puerta: '1' });
+// staff que viaja al backend: "P3 · Ana Torres" (permite estadística por puerta)
+const staffId = c => (c.puerta && c.puerta !== '0' ? 'P' + c.puerta + ' · ' : 'MESA · ') + (c.nombre || '');
+let mode = 'checkin';
+let busy = false;
+let dniBuf = '';          // buffer del teclado numérico
+let textMode = false;     // true = CE/pasaporte con teclado nativo
+let lastOk = null;        // último registro exitoso (para Deshacer)
+let lastReqAt = 0;        // para el keep-warm
+
+// Modo 1 (recomendado): servida por Apps Script → transporte google.script.run, config desde doGet()
+const GAS = !!(window.google && google.script && google.script.run);
+const BOOT = (() => { try { return JSON.parse(document.getElementById('boot').textContent); } catch { return null; } })();
+if (GAS && BOOT) {
+  cfg.api = 'gas';
+  cfg.key = BOOT.key;
+  cfg.puerta = BOOT.puerta || cfg.puerta || '1';
+  cfg.nombre = BOOT.nombre || cfg.nombre || '';
+  cfg.staff = staffId(cfg);
+  store.set(LS.cfg, cfg);
+}
+
+// Modo 2: archivo alojado fuera (GitHub Pages) → index.html?api=...&key=...&puerta=3&nombre=Ana
+(function readUrlParams() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('api') || p.get('key')) {
+    cfg.api = p.get('api') || cfg.api;
+    cfg.key = p.get('key') || cfg.key;
+    cfg.puerta = p.get('puerta') || cfg.puerta || '1';
+    cfg.nombre = p.get('nombre') || cfg.nombre || '';
+    cfg.staff = staffId(cfg);
+    store.set(LS.cfg, cfg);
+    // Importante: NO se limpian los parámetros de la URL. En iPhone, "Agregar a pantalla de inicio"
+    // crea un almacenamiento aparte; la URL con parámetros permite que la app se autoconfigure ahí.
+  }
+})();
+
+/* =====================================================================
+   PERSISTENCIA ROBUSTA: localStorage + IndexedDB (espejo) + storage.persist()
+   ===================================================================== */
+const IDB = (() => {
+  let dbp;
+  const open = () => dbp || (dbp = new Promise((res, rej) => {
+    const r = indexedDB.open('cs_db', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  }));
+  return {
+    async get(k) {
+      try {
+        const db = await open();
+        return await new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); });
+      } catch { return undefined; }
+    },
+    async set(k, v) {
+      try {
+        const db = await open();
+        await new Promise(res => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = res; });
+      } catch {}
+    }
+  };
+})();
+// Pide al navegador no desalojar los datos de este sitio
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
+
+/** Misma normalización que el backend (normDni_): clave de búsqueda local idéntica. */
+function normDni(v) {
+  let s = String(v == null ? '' : v).toUpperCase().replace(/[\s.\-]/g, '');
+  if (/^\d+$/.test(s) && s.length < 8) s = s.padStart(8, '0');
+  return s;
+}
+
+/* =====================================================================
+   API CLIENT (+ medición de latencia)
+   ===================================================================== */
+/** RPC sobre google.script.run, envuelto en Promise y con timeout de 20 s. */
+function gasCall(req) {
+  return new Promise((resolve, reject) => {
+    const to = setTimeout(() => { const e = new Error('timeout'); e.name = 'AbortError'; reject(e); }, 20000);
+    google.script.run
+      .withSuccessHandler(r => { clearTimeout(to); resolve(r); })
+      .withFailureHandler(err => {
+        clearTimeout(to);
+        const e = new Error(String((err && err.message) || err));
+        // Fallas de transporte → se tratan como "sin red" (van a la cola offline)
+        if (/network|http 0|conex|connection|failed to fetch|timeout/i.test(e.message)) e.name = 'TypeError';
+        reject(e);
+      })
+      .rpc(req);
+  });
+}
+
+async function api(action, payload = {}) {
+  lastReqAt = Date.now();
+  if (GAS) {
+    try {
+      const r = await gasCall({ action, key: cfg.key, staff: cfg.staff, ...payload });
+      setNet(true);
+      return r;
+    } catch (e) {
+      if (isNetworkError(e)) setNet(false);
+      throw e;
+    }
+  }
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const res = await fetch(cfg.api, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // "simple request": evita preflight CORS
+      body: JSON.stringify({ action, key: cfg.key, staff: cfg.staff, ...payload }),
+      signal: ctrl.signal
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    setNet(true);
+    return await res.json();
+  } catch (e) {
+    if (isNetworkError(e)) setNet(false);
+    throw e;
+  } finally { clearTimeout(t); }
+}
+const isNetworkError = e => e && (e.name === 'AbortError' || e.name === 'TypeError' || /HTTP 5/.test(e.message));
+
+/* Ventana deslizante de latencias (round-trip completo medido en el celular) */
+const perf = { rtt: [], srv: [] };
+function recordLatency(rtt, srv) {
+  perf.rtt.push(rtt); if (perf.rtt.length > 50) perf.rtt.shift();
+  if (srv != null) { perf.srv.push(srv); if (perf.srv.length > 50) perf.srv.shift(); }
+  const avg = Math.round(perf.rtt.slice(-10).reduce((a, b) => a + b, 0) / Math.min(10, perf.rtt.length));
+  const b = document.getElementById('latBadge');
+  b.textContent = '⏱ ' + (avg >= 1000 ? (avg / 1000).toFixed(1) + ' s' : avg + ' ms');
+  b.style.background = avg < 1500 ? 'rgba(46,204,113,.35)' : avg < 3000 ? 'rgba(241,196,15,.45)' : 'rgba(231,76,60,.55)';
+}
+const pct = (arr, p) => { if (!arr.length) return '–'; const s = [...arr].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
+
+/* =====================================================================
+   LISTA LOCAL (precarga DNI → [nombre, institución])
+   El nombre aparece en < 10 ms sin esperar a la red.
+   El servidor sigue siendo la fuente de verdad (duplicados entre puertas).
+   ===================================================================== */
+let LIST = { at: 0, map: {} };
+(function loadListFromStorage() {
+  const s = store.get(LS.list, null);
+  if (s && s.map) LIST = s;
+})();
+async function refreshList() {
+  if (!cfg.api) return;
+  try {
+    const r = await api('list');
+    if (!r.ok) return;
+    const map = {};
+    r.items.forEach(([d, n, i]) => { map[d] = [n, i]; });
+    LIST = { at: Date.now(), map };
+    saveList();
+  } catch {}
+  renderListInfo();
+}
+function renderListInfo() {
+  const n = Object.keys(LIST.map).length;
+  const el = document.getElementById('listInfo');
+  if (!n) { el.textContent = 'Lista local: sin descargar (se consultará al servidor)'; return; }
+  const min = Math.round((Date.now() - LIST.at) / 60000);
+  el.textContent = `Lista local: ${n} participantes · actualizada hace ${min} min`;
+}
+setInterval(refreshList, 5 * 60 * 1000);   // cada 5 min (incluye inscritos en sitio de otras mesas)
+setInterval(renderListInfo, 60 * 1000);
+
+/* Keep-warm: si el celular está ocioso, un ping cada 60 s mantiene "tibio"
+   el contenedor de Apps Script y la conexión TLS abierta → evita arranques en frío. */
+setInterval(async () => {
+  if (!cfg.api || Date.now() - lastReqAt < 45000 || busy) return;
+  const t0 = performance.now();
+  try { const r = await api('ping'); recordLatency(Math.round(performance.now() - t0), r.ms); } catch {}
+}, 60000);
+
+/* =====================================================================
+   COLA OFFLINE
+   ===================================================================== */
+/* La cola es el ÚNICO dato que vive solo en el celular: se escribe en localStorage
+   e IndexedDB a la vez, y un item solo se elimina cuando el servidor respondió. */
+function saveList() { store.set(LS.list, LIST); IDB.set('list', LIST); }
+function queue() { return store.get(LS.queue, []); }
+function saveQueue(q) { store.set(LS.queue, q); IDB.set('queue', q); renderQueue(); }
+function enqueue(item) {
+  const q = queue();
+  q.push({ ...item, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), ts: Date.now() });
+  saveQueue(q);
+}
+/** Al iniciar: si localStorage perdió datos, se recuperan desde IndexedDB (merge por id). */
+async function recoverStorage() {
+  const iq = await IDB.get('queue');
+  if (Array.isArray(iq) && iq.length) {
+    const q = queue(), ids = new Set(q.map(x => x.id));
+    const missing = iq.filter(x => !ids.has(x.id));
+    if (missing.length) saveQueue([...missing, ...q].sort((a, b) => a.ts - b.ts));
+  }
+  if (!Object.keys(LIST.map).length) {
+    const il = await IDB.get('list');
+    if (il && il.map && Object.keys(il.map).length) { LIST = il; store.set(LS.list, LIST); }
+  }
+  renderQueue(); renderListInfo();
+}
+// Aviso si se intenta cerrar la app con registros pendientes de sincronizar
+window.addEventListener('beforeunload', e => { if (queue().length) { e.preventDefault(); e.returnValue = ''; } });
+function renderQueue() {
+  const n = queue().length, b = document.getElementById('queueBadge');
+  b.style.display = n ? 'inline' : 'none';
+  b.textContent = n + ' pend.';
+}
+let flushing = false;
+async function flushQueue() {
+  if (flushing || !cfg.api) return;
+  flushing = true;
+  try {
+    let q = queue();
+    while (q.length) {
+      const it = q[0];
+      let r;
+      try {
+        r = await api(it.action, it.payload);
+      } catch (e) {
+        break; // cualquier falla (red, timeout, servidor caído): el item SE QUEDA y se reintenta luego
+      }
+      if (!r || r.status === 'BUSY' || r.status === 'ERROR') break; // servidor no lo procesó: reintentar
+      addHistory(r, it.action + ' (sincronizado)');
+      // Solo ahora (respuesta confirmada del servidor) se elimina de la cola. Idempotente en el backend.
+      q = queue().filter(x => (x.id || x.ts) !== (it.id || it.ts));
+      saveQueue(q);
+    }
+  } finally { flushing = false; renderQueue(); }
+}
+setInterval(flushQueue, 10000);
+window.addEventListener('online', () => { setNet(true); flushQueue(); });
+window.addEventListener('offline', () => setNet(false));
+function setNet(on) { document.getElementById('net').classList.toggle('off', !on); }
+
+/* =====================================================================
+   FEEDBACK (sonido, vibración, overlay)
+   ===================================================================== */
+let audioCtx;
+function beep(type) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const tones = { ok: [[880, .12]], dup: [[600, .1], [600, .1]], err: [[220, .45]] }[type];
+    let t = audioCtx.currentTime;
+    tones.forEach(([f, d]) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.frequency.value = f; o.connect(g); g.connect(audioCtx.destination);
+      g.gain.setValueAtTime(.25, t); o.start(t); o.stop(t + d); t += d + .08;
+    });
+  } catch {}
+  if (navigator.vibrate) navigator.vibrate(type === 'ok' ? 80 : type === 'dup' ? [80, 60, 80] : 400);
+}
+let ovTimer;
+function showOverlay(color, big, name, sub, ms = 2200, undo = false, msText = '') {
+  const o = document.getElementById('overlay');
+  o.style.background = color;
+  ovBig.textContent = big; ovName.textContent = name || ''; ovSub.textContent = sub || '';
+  ovMs.textContent = msText;
+  undoBtn.style.display = undo ? 'inline-block' : 'none';
+  o.style.display = 'flex';
+  clearTimeout(ovTimer);
+  ovTimer = setTimeout(hideOverlay, ms);
+}
+function hideOverlay() { document.getElementById('overlay').style.display = 'none'; busy = false; }
+
+const C = { ok: 'var(--ok)', dup: 'var(--dup)', err: 'var(--err)' };
+function msLabel(r) { return r._rtt != null ? `${r._rtt} ms (servidor ${r.ms ?? '–'} ms)` : ''; }
+
+function presentResult(r, action, payload) {
+  const msT = msLabel(r);
+  // Modo combinado Ingreso + Kit
+  if (action === 'checkin' && r.kitStatus && (r.status === 'OK' || r.status === 'DUPLICATE')) {
+    const inOk = r.status === 'OK', kitOk = r.kitStatus === 'OK';
+    lastOk = (inOk || kitOk) ? { dni: r.dni, day: payload.day, undoIn: inOk, undoKit: kitOk } : null;
+    const big = (inOk ? '✔ INGRESO D' + r.day : '⚠ YA INGRESÓ') + '\n' + (kitOk ? '🎁 ENTREGAR KIT' : '✖ KIT YA ENTREGADO');
+    const sub = !kitOk ? 'Kit: ' + (r.kitAt || '') + (r.kitBy ? ' · ' + r.kitBy : '') : (r.institucion || '');
+    const color = kitOk ? (inOk ? C.ok : C.dup) : (inOk ? C.dup : C.err);
+    beep(inOk && kitOk ? 'ok' : 'dup');
+    showOverlay(color, big, r.nombre, sub, 3500, !!lastOk, msT);
+    addHistory({ ...r, status: inOk && kitOk ? 'OK' : 'DUPLICATE' }, 'ingreso+kit');
+    return;
+  }
+  if (r.status === 'OK') {
+    beep('ok');
+    lastOk = { dni: r.dni, day: payload && payload.day, undoIn: action === 'checkin', undoKit: action === 'kit' };
+    const big = action === 'kit' ? '🎁 ENTREGAR KIT' : '✔ ASISTENCIA D' + r.day;
+    const extra = action === 'checkin' && r.day === 1 && !r.kit ? 'Pendiente: recoger kit' : (r.institucion || '');
+    // Más tiempo en pantalla para que el staff confirme el nombre con la persona
+    showOverlay(C.ok, big, r.nombre, extra, 3500, true, msT);
+  } else if (r.status === 'DUPLICATE') {
+    beep('dup');
+    showOverlay(action === 'kit' ? C.err : C.dup, action === 'kit' ? '✖ YA RECIBIÓ KIT' : '⚠ YA REGISTRADO',
+      r.nombre, (r.msg || '') + (r.at ? ' · ' + r.at : ''), 3000, false, msT);
+  } else if (r.status === 'NOT_FOUND') {
+    beep('err');
+    showOverlay(C.err, '✖ NO INSCRITO', 'DNI ' + (r.dni || ''), 'Verifique el número o derive a inscripción', 3500, false, msT);
+  } else {
+    beep('err');
+    showOverlay(C.err, '✖ ERROR', '', r.msg || r.status, 3500, false, msT);
+  }
+  addHistory(r, action);
+}
+
+undoBtn.addEventListener('click', async ev => {
+  ev.stopPropagation();
+  if (!lastOk) return;
+  const p = lastOk; lastOk = null;
+  showOverlay('#555', '…', 'Anulando', 'DNI ' + p.dni, 20000);
+  try {
+    let r;
+    if (p.undoIn) r = await api('undo', { dni: p.dni, what: 'checkin', day: p.day });
+    if (p.undoKit && (!r || r.ok)) r = await api('undo', { dni: p.dni, what: 'kit' });
+    if (r.ok) { beep('dup'); showOverlay('#34495e', '↶ ANULADO', r.nombre, 'Vuelva a digitar el DNI correcto', 2500); addHistory({ ...r, status: 'ANULADO' }, 'undo'); }
+    else presentResult(r, 'undo');
+  } catch (e) { presentResult({ status: 'ERROR', msg: 'Sin conexión: no se pudo anular' }, 'undo'); }
+});
+
+function addHistory(r, action) {
+  const color = { OK: 'var(--ok)', DUPLICATE: 'var(--dup)', NOT_FOUND: 'var(--err)', QUEUED: '#e67e22', ANULADO: '#34495e' }[r.status] || 'var(--err)';
+  const li = document.createElement('li');
+  const time = new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+  li.innerHTML = `<span class="dot" style="background:${color}"></span><span><b></b><br><small></small></span>`;
+  li.querySelector('b').textContent = r.nombre || ('DNI ' + (r.dni || ''));
+  li.querySelector('small').textContent = `${time} · ${action} · ${r.status}${r._rtt != null ? ' · ' + r._rtt + ' ms' : ''}`;
+  const h = document.getElementById('hist');
+  h.prepend(li);
+  while (h.children.length > 12) h.lastChild.remove();
+}
+
+/* =====================================================================
+   INGRESO DE DNI
+   ===================================================================== */
+function cfgDay() { return Number(document.getElementById('daySel').value) || 1; }
+
+function renderDni() {
+  const d = document.getElementById('dniDisplay');
+  d.textContent = dniBuf || 'Digite el DNI';
+  d.classList.toggle('empty', !dniBuf);
+  // Vista previa en vivo mientras digita (búsqueda local O(1) en el hash map)
+  const hit = dniBuf.length >= 8 ? LIST.map[normDni(dniBuf)] : null;
+  document.getElementById('preview').textContent = hit ? '→ ' + hit[0] : '';
+}
+
+document.getElementById('pad').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || busy) return;
+  const k = b.dataset.k;
+  if (textMode) { // en modo texto el teclado numérico también escribe en el input
+    if (k === 'ok') return submitDni(textDni.value);
+    if (k === 'del') textDni.value = textDni.value.slice(0, -1); else textDni.value += b.textContent;
+    return;
+  }
+  if (k === 'ok') return submitDni(dniBuf);
+  if (k === 'del') dniBuf = dniBuf.slice(0, -1);
+  else if (dniBuf.length < 12) dniBuf += b.textContent;
+  renderDni();
+  if (autoSend.checked && dniBuf.length === 8) submitDni(dniBuf);
+});
+
+// Teclado físico / Bluetooth también funciona
+document.addEventListener('keydown', e => {
+  if (document.getElementById('view-scan').classList.contains('hidden') || textMode || busy) return;
+  if (/^\d$/.test(e.key)) { dniBuf += e.key; renderDni(); if (autoSend.checked && dniBuf.length === 8) submitDni(dniBuf); }
+  else if (e.key === 'Backspace') { dniBuf = dniBuf.slice(0, -1); renderDni(); }
+  else if (e.key === 'Enter') submitDni(dniBuf);
+});
+
+abcBtn.addEventListener('click', () => {
+  textMode = !textMode;
+  dniDisplay.classList.toggle('hidden', textMode);
+  preview.classList.toggle('hidden', textMode);
+  textDni.classList.toggle('hidden', !textMode);
+  abcBtn.textContent = textMode ? '123 · DNI' : 'ABC · CE/Pasaporte';
+  if (textMode) { textDni.value = ''; textDni.focus(); }
+});
+textDni.addEventListener('keydown', e => { if (e.key === 'Enter') submitDni(textDni.value); });
+autoSend.checked = store.get(LS.auto, true);
+autoSend.addEventListener('change', () => store.set(LS.auto, autoSend.checked));
+withKit.checked = store.get(LS.kit, false);
+withKit.addEventListener('change', () => store.set(LS.kit, withKit.checked));
+
+async function submitDni(raw) {
+  const dni = normDni(raw);
+  if (!dni || busy) return;
+  busy = true;
+  dniBuf = ''; renderDni(); textDni.value = '';
+
+  const payload = mode === 'checkin' ? { dni, day: cfgDay(), withKit: withKit.checked } : { dni };
+  const local = LIST.map[dni];
+
+  // UI optimista: si está en la lista local, el nombre aparece YA (0 red)
+  if (local) showOverlay('var(--pend)', '⏳ REGISTRANDO…', local[0], local[1] || '', 20000);
+  else showOverlay('#555', '…', 'Consultando servidor', 'DNI ' + dni + ' (no está en la lista local)', 20000);
+
+  const t0 = performance.now();
+  try {
+    const r = await api(mode, payload);
+    r._rtt = Math.round(performance.now() - t0);
+    recordLatency(r._rtt, r.ms);
+    presentResult(r, mode, payload);
+    if (!local && r.nombre) refreshList(); // inscrito recientemente en otra mesa → actualiza lista
+  } catch (e) {
+    if (isNetworkError(e)) {
+      enqueue({ action: mode, payload });
+      beep('dup');
+      const nm = local ? local[0] : 'DNI ' + dni;
+      const sub = !local ? '⚠ No figura en la lista local: verifique luego'
+        : mode === 'kit' || withKit.checked ? 'Guardado en cola. ¡Ojo! sin red no se valida si ya recibió kit'
+        : 'Guardado en cola, se sincroniza solo';
+      showOverlay('#e67e22', '⏳ SIN CONEXIÓN', nm, sub, 3500);
+      addHistory({ status: 'QUEUED', dni, nombre: local && local[0] }, mode);
+    } else {
+      presentResult({ status: 'ERROR', msg: e.message }, mode);
+    }
+  }
+}
+
+/* =====================================================================
+   INSCRIPCIÓN
+   ===================================================================== */
+async function registerSubmit() {
+  const payload = {
+    dni: normDni(rDni.value), nombre: rNombre.value.trim(), institucion: rInst.value.trim(),
+    correo: rCorreo.value.trim(), celular: rCel.value.trim(),
+    markAttendance: rAsist.checked, day: cfgDay()
+  };
+  if (!payload.dni || !payload.nombre) { alertBox('DNI y nombre son obligatorios'); return; }
+  try {
+    showOverlay('#555', '…', 'Inscribiendo', '', 20000);
+    const r = await api('register', payload);
+    hideOverlay();
+    if (r.status === 'OK' || r.status === 'DUPLICATE') {
+      beep(r.status === 'OK' ? 'ok' : 'dup');
+      LIST.map[r.dni] = [r.nombre, r.institucion]; saveList();
+      showRegDone(r.status === 'OK' ? 'Inscrito ✔' : 'Ya estaba inscrito', r.nombre, r.dni);
+    } else presentResult(r, 'register');
+  } catch (e) {
+    hideOverlay();
+    if (isNetworkError(e)) {
+      enqueue({ action: 'register', payload });
+      LIST.map[payload.dni] = [payload.nombre.toUpperCase(), payload.institucion]; saveList();
+      showRegDone('Guardado sin conexión ⏳', payload.nombre.toUpperCase(), payload.dni);
+    } else presentResult({ status: 'ERROR', msg: e.message }, 'register');
+  }
+}
+function showRegDone(title, nombre, dni) {
+  regForm.classList.add('hidden'); regDone.classList.remove('hidden');
+  regDoneTitle.textContent = title; regDoneName.textContent = nombre + ' · DNI ' + dni;
+}
+function resetRegister() {
+  ['rDni', 'rNombre', 'rInst', 'rCorreo', 'rCel'].forEach(id => document.getElementById(id).value = '');
+  regDone.classList.add('hidden'); regForm.classList.remove('hidden'); rDni.focus();
+}
+function alertBox(msg) { beep('err'); showOverlay('var(--err)', '✖', msg, '', 2500); }
+
+/* =====================================================================
+   RESUMEN + RENDIMIENTO
+   ===================================================================== */
+function tiles(el, cells) {
+  el.innerHTML = '';
+  cells.forEach(([k, v]) => { const d = document.createElement('div'); d.innerHTML = `<b></b>`; d.querySelector('b').textContent = v; d.append(k); el.appendChild(d); });
+}
+function renderPerf() {
+  const fmt = v => v === '–' ? v : v + ' ms';
+  tiles(document.getElementById('perfGrid'), [
+    ['Mediana (p50)', fmt(pct(perf.rtt, .5))],
+    ['p95 (peor 5%)', fmt(pct(perf.rtt, .95))],
+    ['Máximo', fmt(perf.rtt.length ? Math.max(...perf.rtt) : '–')],
+    ['Servidor p50', fmt(pct(perf.srv, .5))],
+    ['Muestras', perf.rtt.length],
+    ['Lista local', Object.keys(LIST.map).length],
+  ]);
+}
+async function loadStats() {
+  const g = document.getElementById('statGrid');
+  g.innerHTML = '<div>Cargando…</div>';
+  renderPerf();
+  try {
+    const t0 = performance.now();
+    const r = await api('stats');
+    recordLatency(Math.round(performance.now() - t0), r.ms);
+    if (!r.ok) throw new Error(r.msg);
+    const cells = [['Inscritos', r.total], ['Kits entregados', r.kits]];
+    r.dias.forEach((n, i) => cells.push(['Asistencia D' + (i + 1), n]));
+    cells.push(['Inscritos en sitio', r.enSitio]);
+    Object.keys(r.puertas || {}).sort().forEach(p => cells.push([p + ' · hoy', r.puertas[p]]));
+    tiles(g, cells);
+    renderPerf();
+  } catch (e) { g.innerHTML = '<div>Error: ' + e.message + '</div>'; }
+}
+
+/* =====================================================================
+   NAVEGACIÓN
+   ===================================================================== */
+function show(view) {
+  ['config', 'scan', 'register', 'stats'].forEach(v => document.getElementById('view-' + v).classList.toggle('hidden', v !== view));
+  if (view === 'config') {
+    cfgApi.value = GAS ? '(integrada en Apps Script)' : cfg.api;
+    cfgApi.disabled = cfgKey.disabled = GAS;
+    cfgKey.value = cfg.key; cfgStaff.value = cfg.nombre || ''; cfgPuerta.value = cfg.puerta || '1';
+  }
+}
+document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => {
+  if (!cfg.api) { show('config'); return; }
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('active', x === b));
+  mode = b.dataset.mode;
+  if (mode === 'checkin' || mode === 'kit') {
+    scanTitle.textContent = mode === 'kit' ? 'Entrega de kit' : 'Asistencia';
+    daySel.style.display = mode === 'kit' ? 'none' : '';
+    kitOpt.style.display = mode === 'kit' ? 'none' : '';
+    dniBuf = ''; renderDni(); renderListInfo();
+    show('scan');
+  } else if (mode === 'register') show('register');
+  else { show('stats'); loadStats(); }
+}));
+
+function buildDaySelect(n, current) {
+  daySel.innerHTML = '';
+  for (let i = 1; i <= (n || 3); i++) daySel.add(new Option('Día ' + i, i));
+  daySel.value = current || store.get(LS.day, 1);
+}
+daySel.addEventListener('change', () => store.set(LS.day, Number(daySel.value)));
+
+async function saveConfig() {
+  cfg = GAS
+    ? { ...cfg, nombre: cfgStaff.value.trim(), puerta: cfgPuerta.value }
+    : { api: cfgApi.value.trim(), key: cfgKey.value.trim(), nombre: cfgStaff.value.trim(), puerta: cfgPuerta.value };
+  cfg.staff = staffId(cfg);
+  store.set(LS.cfg, cfg);
+  cfgMsg.textContent = 'Probando…';
+  try {
+    const t0 = performance.now();
+    const r = await api('ping');
+    if (!r.ok) throw new Error(r.msg || r.status);
+    recordLatency(Math.round(performance.now() - t0), r.ms);
+    buildDaySelect(r.days, r.day);
+    hdrStaff.textContent = '· ' + cfg.staff;
+    cfgMsg.textContent = '✔ Conectado' + (r.day ? ' · Hoy es el día ' + r.day : ' · (hoy no es día del evento)') + ' · descargando lista…';
+    await refreshList();
+    cfgMsg.textContent += ' ✔ ' + Object.keys(LIST.map).length + ' participantes';
+    setTimeout(() => document.querySelector('#tabs button[data-mode="checkin"]').click(), 900);
+  } catch (e) { cfgMsg.textContent = '✖ ' + e.message; }
+}
+
+/* =====================================================================
+   INICIO
+   ===================================================================== */
+(async function init() {
+  setNet(navigator.onLine); renderQueue(); buildDaySelect(3); renderListInfo();
+  await recoverStorage();
+  hdrStaff.textContent = cfg.api ? '· ' + cfg.staff : '';
+  if (!cfg.api) { show('config'); return; }
+  document.querySelector('#tabs button[data-mode="checkin"]').click();
+  try {
+    const t0 = performance.now();
+    const r = await api('ping');
+    if (r.ok) { buildDaySelect(r.days, r.day); recordLatency(Math.round(performance.now() - t0), r.ms); }
+  } catch {}
+  refreshList();
+  flushQueue();
+})();
+</script>
+</body>
+</html>
