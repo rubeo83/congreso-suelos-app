@@ -28,7 +28,14 @@
   button.primary{width:100%;padding:14px;font-size:16px;font-weight:700;border:0;border-radius:10px;background:var(--brand);color:#fff}
   button.ghost{padding:10px 14px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:14px}
   .modeTitle{font-size:20px;font-weight:800;margin:0}
-  .listInfo{font-size:12px;color:var(--muted);margin-top:4px}
+  .listInfo{font-size:12px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:8px}
+  .listInfo span{flex:1}
+  .chip{display:inline-block;border-radius:12px;padding:3px 10px;font-size:13px;font-weight:700;background:#efe6da;color:var(--brand);white-space:nowrap}
+  .chip.open{background:#d9f2e3;color:#1f6b3f}.chip.closed{background:#f9dcd8;color:#a5281b}
+  #testBanner{background:repeating-linear-gradient(45deg,#f1c40f,#f1c40f 12px,#f5d547 12px,#f5d547 24px);color:#3b2a00;text-align:center;font-weight:800;font-size:13px;padding:6px}
+  #overlay .cat{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:14px;background:rgba(255,255,255,.22);font-size:15px;font-weight:700;letter-spacing:.3px}
+  #overlay .cat.vip{background:#f1c40f;color:#3b2a00}
+  #preview .pcat{color:var(--brand)}
   /* Display + teclado */
   #dniDisplay{font-size:40px;font-weight:800;letter-spacing:4px;text-align:center;padding:12px 8px 4px;border:2px solid var(--brand);border-radius:12px;background:#fff;min-height:84px;font-variant-numeric:tabular-nums}
   #dniDisplay.empty{color:#c9bcae;font-weight:600;font-size:22px;letter-spacing:0;line-height:56px}
@@ -71,6 +78,7 @@
   <button class="ghost" style="padding:6px 10px" onclick="show('config')">⚙</button>
 </header>
 
+<div id="testBanner" class="hidden">⚠ MODO PRUEBA · los registros van al Día 1 · limpiar antes del 18-nov</div>
 <nav id="tabs">
   <button data-mode="checkin" class="active">Asistencia</button>
   <button data-mode="kit">Kit</button>
@@ -105,9 +113,10 @@
     <div class="card">
       <div class="row">
         <p class="modeTitle" id="scanTitle" style="flex:1">Asistencia</p>
-        <select id="daySel" style="width:auto"></select>
+        <span class="chip" id="dayChip">Día –</span>
+        <span class="chip" id="winChip">⏰ –</span>
       </div>
-      <div class="listInfo" id="listInfo">Lista local: cargando…</div>
+      <div class="listInfo"><span id="listInfo">Lista local: cargando…</span><button class="ghost" id="refreshBtn" style="padding:6px 10px">↻ Actualizar</button></div>
     </div>
 
     <div class="card">
@@ -179,6 +188,7 @@
   <div class="big" id="ovBig"></div>
   <div class="name" id="ovName"></div>
   <div class="sub" id="ovSub"></div>
+  <div class="cat hidden" id="ovCat"></div>
   <button id="undoBtn">↶ Deshacer (DNI mal digitado)</button>
   <div class="tap">Toca para continuar</div>
 </div>
@@ -203,6 +213,7 @@ let busy = false;
 let dniBuf = '';          // buffer del teclado numérico
 let textMode = false;     // true = CE/pasaporte con teclado nativo
 let lastOk = null;        // último registro exitoso (para Deshacer)
+let SRV = { day: null, test: false, abierto: true, horario: null }; // estado que decide el servidor
 let lastReqAt = 0;        // para el keep-warm
 
 // Modo 1 (recomendado): servida por Apps Script → transporte google.script.run, config desde doGet()
@@ -341,16 +352,19 @@ let LIST = { at: 0, map: {} };
   const s = store.get(LS.list, null);
   if (s && s.map) LIST = s;
 })();
-async function refreshList() {
+async function refreshList(manual) {
   if (!cfg.api) return;
+  if (manual) { refreshBtn.disabled = true; refreshBtn.textContent = '↻ …'; }
   try {
     const r = await api('list');
     if (!r.ok) return;
     const map = {};
-    r.items.forEach(([d, n, i]) => { map[d] = [n, i]; });
+    r.items.forEach(([d, n, i, c]) => { map[d] = [n, i, c || '']; });
     LIST = { at: Date.now(), map };
     saveList();
-  } catch {}
+    if (manual) { beep('ok'); }
+  } catch { if (manual) alertBox('Sin conexión: no se pudo actualizar la lista'); }
+  if (manual) { refreshBtn.disabled = false; refreshBtn.textContent = '↻ Actualizar'; }
   renderListInfo();
 }
 function renderListInfo() {
@@ -368,7 +382,7 @@ setInterval(renderListInfo, 60 * 1000);
 setInterval(async () => {
   if (!cfg.api || Date.now() - lastReqAt < 45000 || busy) return;
   const t0 = performance.now();
-  try { const r = await api('ping'); recordLatency(Math.round(performance.now() - t0), r.ms); } catch {}
+  try { const r = await api('ping'); recordLatency(Math.round(performance.now() - t0), r.ms); applyPing(r); } catch {}
 }, 60000);
 
 /* =====================================================================
@@ -432,6 +446,23 @@ window.addEventListener('online', () => { setNet(true); flushQueue(); });
 window.addEventListener('offline', () => setNet(false));
 function setNet(on) { document.getElementById('net').classList.toggle('off', !on); }
 
+/** El servidor decide el día y si la ventana de atención está abierta. */
+function applyPing(r) {
+  if (!r || !r.ok) return;
+  SRV = { day: r.day, test: !!r.test, abierto: !!r.abierto, horario: r.horario };
+  dayChip.textContent = r.day ? (r.test ? 'PRUEBA · Día 1' : 'Día ' + r.day) : 'Evento cerrado';
+  const h = r.horario ? r.horario.inicio + '–' + r.horario.fin : '';
+  winChip.textContent = r.test ? '⏰ ' + h + ' (no aplica en prueba)' : (r.abierto ? '🟢 Abierto ' : '🔴 Cerrado ') + h;
+  winChip.className = 'chip ' + (r.test ? '' : r.abierto ? 'open' : 'closed');
+  testBanner.classList.toggle('hidden', !r.test);
+}
+const VIP = /COMIT|PONENTE|INVITAD|AUTORIDAD|EXPOSITOR|ORGANIZ/i;
+function setCat(cat) {
+  ovCat.textContent = cat || '';
+  ovCat.classList.toggle('hidden', !cat);
+  ovCat.classList.toggle('vip', !!cat && VIP.test(cat));
+}
+
 /* =====================================================================
    FEEDBACK (sonido, vibración, overlay)
    ===================================================================== */
@@ -455,6 +486,7 @@ function showOverlay(color, big, name, sub, ms = 2200, undo = false, msText = ''
   o.style.background = color;
   ovBig.textContent = big; ovName.textContent = name || ''; ovSub.textContent = sub || '';
   ovMs.textContent = msText;
+  setCat('');
   undoBtn.style.display = undo ? 'inline-block' : 'none';
   o.style.display = 'flex';
   clearTimeout(ovTimer);
@@ -470,26 +502,34 @@ function presentResult(r, action, payload) {
   // Modo combinado Ingreso + Kit
   if (action === 'checkin' && r.kitStatus && (r.status === 'OK' || r.status === 'DUPLICATE')) {
     const inOk = r.status === 'OK', kitOk = r.kitStatus === 'OK';
-    lastOk = (inOk || kitOk) ? { dni: r.dni, day: payload.day, undoIn: inOk, undoKit: kitOk } : null;
+    lastOk = (inOk || kitOk) ? { dni: r.dni, day: r.day, undoIn: inOk, undoKit: kitOk } : null;
     const big = (inOk ? '✔ INGRESO D' + r.day : '⚠ YA INGRESÓ') + '\n' + (kitOk ? '🎁 ENTREGAR KIT' : '✖ KIT YA ENTREGADO');
     const sub = !kitOk ? 'Kit: ' + (r.kitAt || '') + (r.kitBy ? ' · ' + r.kitBy : '') : (r.institucion || '');
     const color = kitOk ? (inOk ? C.ok : C.dup) : (inOk ? C.dup : C.err);
     beep(inOk && kitOk ? 'ok' : 'dup');
     showOverlay(color, big, r.nombre, sub, 3500, !!lastOk, msT);
+    setCat(r.categoria);
     addHistory({ ...r, status: inOk && kitOk ? 'OK' : 'DUPLICATE' }, 'ingreso+kit');
     return;
   }
   if (r.status === 'OK') {
     beep('ok');
-    lastOk = { dni: r.dni, day: payload && payload.day, undoIn: action === 'checkin', undoKit: action === 'kit' };
+    lastOk = { dni: r.dni, day: r.day, undoIn: action === 'checkin', undoKit: action === 'kit' };
     const big = action === 'kit' ? '🎁 ENTREGAR KIT' : '✔ ASISTENCIA D' + r.day;
     const extra = action === 'checkin' && r.day === 1 && !r.kit ? 'Pendiente: recoger kit' : (r.institucion || '');
     // Más tiempo en pantalla para que el staff confirme el nombre con la persona
     showOverlay(C.ok, big, r.nombre, extra, 3500, true, msT);
+    setCat(r.categoria);
   } else if (r.status === 'DUPLICATE') {
     beep('dup');
     showOverlay(action === 'kit' ? C.err : C.dup, action === 'kit' ? '✖ YA RECIBIÓ KIT' : '⚠ YA REGISTRADO',
       r.nombre, (r.msg || '') + (r.at ? ' · ' + r.at : ''), 3000, false, msT);
+    setCat(r.categoria);
+  } else if (r.status === 'CLOSED') {
+    beep('err');
+    const loc = LIST.map[r.dni];
+    showOverlay(C.err, '⛔ FUERA DE HORARIO', loc ? loc[0] : (r.dni ? 'DNI ' + r.dni : ''), r.msg || '', 3500, false, msT);
+    api('ping').then(applyPing).catch(() => {});
   } else if (r.status === 'NOT_FOUND') {
     beep('err');
     showOverlay(C.err, '✖ NO INSCRITO', 'DNI ' + (r.dni || ''), 'Verifique el número o derive a inscripción', 3500, false, msT);
@@ -515,7 +555,7 @@ undoBtn.addEventListener('click', async ev => {
 });
 
 function addHistory(r, action) {
-  const color = { OK: 'var(--ok)', DUPLICATE: 'var(--dup)', NOT_FOUND: 'var(--err)', QUEUED: '#e67e22', ANULADO: '#34495e' }[r.status] || 'var(--err)';
+  const color = { OK: 'var(--ok)', DUPLICATE: 'var(--dup)', NOT_FOUND: 'var(--err)', QUEUED: '#e67e22', ANULADO: '#34495e', CLOSED: '#7f1d1d' }[r.status] || 'var(--err)';
   const li = document.createElement('li');
   const time = new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
   li.innerHTML = `<span class="dot" style="background:${color}"></span><span><b></b><br><small></small></span>`;
@@ -529,7 +569,7 @@ function addHistory(r, action) {
 /* =====================================================================
    INGRESO DE DNI
    ===================================================================== */
-function cfgDay() { return Number(document.getElementById('daySel').value) || 1; }
+// El día ya no se elige: lo decide el servidor según la fecha (y el MODO PRUEBA antes del evento).
 
 function renderDni() {
   const d = document.getElementById('dniDisplay');
@@ -537,7 +577,9 @@ function renderDni() {
   d.classList.toggle('empty', !dniBuf);
   // Vista previa en vivo mientras digita (búsqueda local O(1) en el hash map)
   const hit = dniBuf.length >= 8 ? LIST.map[normDni(dniBuf)] : null;
-  document.getElementById('preview').textContent = hit ? '→ ' + hit[0] : '';
+  const pv = document.getElementById('preview');
+  pv.textContent = hit ? '→ ' + hit[0] : '';
+  if (hit && hit[2]) { const c = document.createElement('span'); c.className = 'pcat'; c.textContent = ' · ' + hit[2]; pv.appendChild(c); }
 }
 
 document.getElementById('pad').addEventListener('click', e => {
@@ -583,11 +625,12 @@ async function submitDni(raw) {
   busy = true;
   dniBuf = ''; renderDni(); textDni.value = '';
 
-  const payload = mode === 'checkin' ? { dni, day: cfgDay(), withKit: withKit.checked } : { dni };
+  // ts = hora de captura: si queda en cola offline, el servidor lo asigna al día/hora en que se registró
+  const payload = mode === 'checkin' ? { dni, withKit: withKit.checked, ts: Date.now() } : { dni, ts: Date.now() };
   const local = LIST.map[dni];
 
   // UI optimista: si está en la lista local, el nombre aparece YA (0 red)
-  if (local) showOverlay('var(--pend)', '⏳ REGISTRANDO…', local[0], local[1] || '', 20000);
+  if (local) { showOverlay('var(--pend)', '⏳ REGISTRANDO…', local[0], local[1] || '', 20000); setCat(local[2]); }
   else showOverlay('#555', '…', 'Consultando servidor', 'DNI ' + dni + ' (no está en la lista local)', 20000);
 
   const t0 = performance.now();
@@ -620,7 +663,7 @@ async function registerSubmit() {
   const payload = {
     dni: normDni(rDni.value), nombre: rNombre.value.trim(), institucion: rInst.value.trim(),
     correo: rCorreo.value.trim(), celular: rCel.value.trim(),
-    markAttendance: rAsist.checked, day: cfgDay()
+    markAttendance: rAsist.checked, ts: Date.now()
   };
   if (!payload.dni || !payload.nombre) { alertBox('DNI y nombre son obligatorios'); return; }
   try {
@@ -629,21 +672,21 @@ async function registerSubmit() {
     hideOverlay();
     if (r.status === 'OK' || r.status === 'DUPLICATE') {
       beep(r.status === 'OK' ? 'ok' : 'dup');
-      LIST.map[r.dni] = [r.nombre, r.institucion]; saveList();
-      showRegDone(r.status === 'OK' ? 'Inscrito ✔' : 'Ya estaba inscrito', r.nombre, r.dni);
+      LIST.map[r.dni] = [r.nombre, r.institucion, r.categoria || '']; saveList();
+      showRegDone(r.status === 'OK' ? 'Inscrito ✔' : 'Ya estaba inscrito', r.nombre, r.dni, r.msg);
     } else presentResult(r, 'register');
   } catch (e) {
     hideOverlay();
     if (isNetworkError(e)) {
       enqueue({ action: 'register', payload });
-      LIST.map[payload.dni] = [payload.nombre.toUpperCase(), payload.institucion]; saveList();
+      LIST.map[payload.dni] = [payload.nombre.toUpperCase(), payload.institucion, '']; saveList();
       showRegDone('Guardado sin conexión ⏳', payload.nombre.toUpperCase(), payload.dni);
     } else presentResult({ status: 'ERROR', msg: e.message }, 'register');
   }
 }
-function showRegDone(title, nombre, dni) {
+function showRegDone(title, nombre, dni, msg) {
   regForm.classList.add('hidden'); regDone.classList.remove('hidden');
-  regDoneTitle.textContent = title; regDoneName.textContent = nombre + ' · DNI ' + dni;
+  regDoneTitle.textContent = title; regDoneName.textContent = nombre + ' · DNI ' + dni + (msg && msg.includes('NO marcada') ? '  ⚠ ' + msg.split('· ')[1] : '');
 }
 function resetRegister() {
   ['rDni', 'rNombre', 'rInst', 'rCorreo', 'rCel'].forEach(id => document.getElementById(id).value = '');
@@ -704,7 +747,6 @@ document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click
   mode = b.dataset.mode;
   if (mode === 'checkin' || mode === 'kit') {
     scanTitle.textContent = mode === 'kit' ? 'Entrega de kit' : 'Asistencia';
-    daySel.style.display = mode === 'kit' ? 'none' : '';
     kitOpt.style.display = mode === 'kit' ? 'none' : '';
     dniBuf = ''; renderDni(); renderListInfo();
     show('scan');
@@ -712,12 +754,7 @@ document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click
   else { show('stats'); loadStats(); }
 }));
 
-function buildDaySelect(n, current) {
-  daySel.innerHTML = '';
-  for (let i = 1; i <= (n || 3); i++) daySel.add(new Option('Día ' + i, i));
-  daySel.value = current || store.get(LS.day, 1);
-}
-daySel.addEventListener('change', () => store.set(LS.day, Number(daySel.value)));
+refreshBtn.addEventListener('click', () => refreshList(true));
 
 async function saveConfig() {
   cfg = GAS
@@ -731,7 +768,7 @@ async function saveConfig() {
     const r = await api('ping');
     if (!r.ok) throw new Error(r.msg || r.status);
     recordLatency(Math.round(performance.now() - t0), r.ms);
-    buildDaySelect(r.days, r.day);
+    applyPing(r);
     hdrStaff.textContent = '· ' + cfg.staff;
     cfgMsg.textContent = '✔ Conectado' + (r.day ? ' · Hoy es el día ' + r.day : ' · (hoy no es día del evento)') + ' · descargando lista…';
     await refreshList();
@@ -744,7 +781,7 @@ async function saveConfig() {
    INICIO
    ===================================================================== */
 (async function init() {
-  setNet(navigator.onLine); renderQueue(); buildDaySelect(3); renderListInfo();
+  setNet(navigator.onLine); renderQueue(); renderListInfo();
   await recoverStorage();
   hdrStaff.textContent = cfg.api ? '· ' + cfg.staff : '';
   if (!cfg.api) { show('config'); return; }
@@ -752,7 +789,7 @@ async function saveConfig() {
   try {
     const t0 = performance.now();
     const r = await api('ping');
-    if (r.ok) { buildDaySelect(r.days, r.day); recordLatency(Math.round(performance.now() - t0), r.ms); }
+    if (r.ok) { applyPing(r); recordLatency(Math.round(performance.now() - t0), r.ms); }
   } catch {}
   refreshList();
   flushQueue();
