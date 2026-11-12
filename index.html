@@ -36,6 +36,13 @@
   #overlay .cat{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:14px;background:rgba(255,255,255,.22);font-size:15px;font-weight:700;letter-spacing:.3px}
   #overlay .cat.vip{background:#f1c40f;color:#3b2a00}
   #preview .pcat{color:var(--brand)}
+  .logos{display:flex;gap:6px;align-items:center}
+  .logos img{height:30px;max-width:86px;object-fit:contain;background:#fff;border-radius:6px;padding:2px 4px}
+  #byline{position:fixed;right:10px;bottom:6px;font-size:11px;color:var(--muted);opacity:.85;z-index:4;pointer-events:none;font-style:italic}
+  main{padding-bottom:28px}
+  #blocked{position:fixed;inset:0;background:#2b2118;color:#fff;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px}
+  #blocked b{font-size:24px;margin-bottom:12px}
+  #blocked small{opacity:.7;margin-top:14px;font-family:monospace}
   /* Display + teclado */
   #dniDisplay{font-size:40px;font-weight:800;letter-spacing:4px;text-align:center;padding:12px 8px 4px;border:2px solid var(--brand);border-radius:12px;background:#fff;min-height:84px;font-variant-numeric:tabular-nums}
   #dniDisplay.empty{color:#c9bcae;font-weight:600;font-size:22px;letter-spacing:0;line-height:56px}
@@ -72,6 +79,10 @@
 
 <header>
   <span class="net" id="net"></span>
+  <span class="logos">
+    <img src="logo-inia.png" alt="INIA" onerror="this.remove()">
+    <img src="logo-congreso.png" alt="Congreso" onerror="this.remove()">
+  </span>
   <h1>Congreso de Suelos <small id="hdrStaff"></small></h1>
   <span class="pill" id="latBadge" title="Latencia promedio de los últimos registros">⏱ –</span>
   <span class="pill" id="queueBadge"></span>
@@ -111,7 +122,7 @@
   <!-- INGRESO POR DNI (checkin / kit) -->
   <section id="view-scan" class="hidden">
     <div class="card">
-      <div class="row">
+      <div class="row" style="flex-wrap:wrap">
         <p class="modeTitle" id="scanTitle" style="flex:1">Asistencia</p>
         <span class="chip" id="dayChip">Día –</span>
         <span class="chip" id="winChip">⏰ –</span>
@@ -183,6 +194,8 @@
   </section>
 </main>
 
+<div id="byline">By: Ruben Arana</div>
+<div id="blocked"><b>⛔ Dispositivo no autorizado</b><span id="blockedMsg"></span><small id="blockedId"></small></div>
 <div id="overlay" onclick="hideOverlay()">
   <div class="ms" id="ovMs"></div>
   <div class="big" id="ovBig"></div>
@@ -269,6 +282,16 @@ const IDB = (() => {
     }
   };
 })();
+/** ID único del celular (cuenta para el límite de dispositivos). Se recupera de IndexedDB si
+    localStorage se borró, para no consumir un cupo nuevo. Toda llamada a la API lo espera. */
+const deviceReady = (async () => {
+  let id = store.get('cs_device', null) || await IDB.get('device');
+  if (!id) {
+    try { id = crypto.randomUUID(); } catch { id = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12); }
+  }
+  store.set('cs_device', id); IDB.set('device', id);
+  return id;
+})();
 // Pide al navegador no desalojar los datos de este sitio
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
 
@@ -301,9 +324,12 @@ function gasCall(req) {
 
 async function api(action, payload = {}) {
   lastReqAt = Date.now();
+  const device = await deviceReady;
+  const ua = navigator.userAgent;
   if (GAS) {
     try {
-      const r = await gasCall({ action, key: cfg.key, staff: cfg.staff, ...payload });
+      const r = await gasCall({ action, key: cfg.key, staff: cfg.staff, device, ua, ...payload });
+      checkBlocked(r);
       setNet(true);
       return r;
     } catch (e) {
@@ -317,12 +343,14 @@ async function api(action, payload = {}) {
     const res = await fetch(cfg.api, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // "simple request": evita preflight CORS
-      body: JSON.stringify({ action, key: cfg.key, staff: cfg.staff, ...payload }),
+      body: JSON.stringify({ action, key: cfg.key, staff: cfg.staff, device, ua, ...payload }),
       signal: ctrl.signal
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     setNet(true);
-    return await res.json();
+    const r = await res.json();
+    checkBlocked(r);
+    return r;
   } catch (e) {
     if (isNetworkError(e)) setNet(false);
     throw e;
@@ -433,7 +461,7 @@ async function flushQueue() {
       } catch (e) {
         break; // cualquier falla (red, timeout, servidor caído): el item SE QUEDA y se reintenta luego
       }
-      if (!r || r.status === 'BUSY' || r.status === 'ERROR') break; // servidor no lo procesó: reintentar
+      if (!r || ['BUSY', 'ERROR', 'DEVICE_LIMIT', 'DEVICE_REQUIRED'].includes(r.status)) break; // no procesado: reintentar
       addHistory(r, it.action + ' (sincronizado)');
       // Solo ahora (respuesta confirmada del servidor) se elimina de la cola. Idempotente en el backend.
       q = queue().filter(x => (x.id || x.ts) !== (it.id || it.ts));
@@ -446,13 +474,21 @@ window.addEventListener('online', () => { setNet(true); flushQueue(); });
 window.addEventListener('offline', () => setNet(false));
 function setNet(on) { document.getElementById('net').classList.toggle('off', !on); }
 
+/** Si el servidor rechaza este celular (límite de dispositivos), se bloquea la app. */
+function checkBlocked(r) {
+  if (!r || (r.status !== 'DEVICE_LIMIT' && r.status !== 'DEVICE_REQUIRED')) return;
+  blockedMsg.textContent = r.msg || '';
+  deviceReady.then(id => { blockedId.textContent = 'ID: ' + id; });
+  document.getElementById('blocked').style.display = 'flex';
+}
+
 /** El servidor decide el día y si la ventana de atención está abierta. */
 function applyPing(r) {
   if (!r || !r.ok) return;
-  SRV = { day: r.day, test: !!r.test, abierto: !!r.abierto, horario: r.horario };
+  SRV = { day: r.day, test: !!r.test, abierto: !!r.abierto, horario: r.horario, disp: r.dispositivos || SRV.disp };
   dayChip.textContent = r.day ? (r.test ? 'PRUEBA · Día 1' : 'Día ' + r.day) : 'Evento cerrado';
   const h = r.horario ? r.horario.inicio + '–' + r.horario.fin : '';
-  winChip.textContent = r.test ? '⏰ ' + h + ' (no aplica en prueba)' : (r.abierto ? '🟢 Abierto ' : '🔴 Cerrado ') + h;
+  winChip.textContent = r.test ? '⏰ ' + h + ' · libre en prueba' : (r.abierto ? '🟢 Abierto ' : '🔴 Cerrado ') + h;
   winChip.className = 'chip ' + (r.test ? '' : r.abierto ? 'open' : 'closed');
   testBanner.classList.toggle('hidden', !r.test);
 }
@@ -710,6 +746,7 @@ function renderPerf() {
     ['Servidor p50', fmt(pct(perf.srv, .5))],
     ['Muestras', perf.rtt.length],
     ['Lista local', Object.keys(LIST.map).length],
+    ['Dispositivos registrados', SRV.disp || '–'],
   ]);
 }
 async function loadStats() {
