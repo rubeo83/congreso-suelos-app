@@ -35,7 +35,7 @@
   #testBanner{background:repeating-linear-gradient(45deg,#f1c40f,#f1c40f 12px,#f5d547 12px,#f5d547 24px);color:#3b2a00;text-align:center;font-weight:800;font-size:13px;padding:6px}
   #overlay .cat{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:14px;background:rgba(255,255,255,.22);font-size:15px;font-weight:700;letter-spacing:.3px}
   #overlay .cat.vip{background:#f1c40f;color:#3b2a00}
-  #preview .pcat{color:var(--brand)}
+  #preview .pcat{display:block;font-size:15px;font-weight:700;color:var(--brand);margin-top:2px}
   .logos{display:flex;gap:6px;align-items:center}
   .logos img{height:30px;max-width:86px;object-fit:contain;background:#fff;border-radius:6px;padding:2px 4px}
   #byline{position:fixed;right:10px;bottom:6px;font-size:11px;color:var(--muted);opacity:.85;z-index:4;pointer-events:none;font-style:italic}
@@ -43,10 +43,15 @@
   #blocked{position:fixed;inset:0;background:#2b2118;color:#fff;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px}
   #blocked b{font-size:24px;margin-bottom:12px}
   #blocked small{opacity:.7;margin-top:14px;font-family:monospace}
+  #view-login .card{margin-top:18px}
+  #view-login .logosBig{display:flex;justify-content:center;gap:14px;margin:6px 0 12px}
+  #view-login .logosBig img{height:56px;object-fit:contain}
+  #loginClave{letter-spacing:2px;text-transform:uppercase}
+  .err{color:var(--err);font-weight:700}
   /* Display + teclado */
   #dniDisplay{font-size:40px;font-weight:800;letter-spacing:4px;text-align:center;padding:12px 8px 4px;border:2px solid var(--brand);border-radius:12px;background:#fff;min-height:84px;font-variant-numeric:tabular-nums}
   #dniDisplay.empty{color:#c9bcae;font-weight:600;font-size:22px;letter-spacing:0;line-height:56px}
-  #preview{display:block;font-size:14px;letter-spacing:0;font-weight:600;color:var(--muted);min-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #preview{display:block;font-size:22px;letter-spacing:0;font-weight:800;color:var(--ink);min-height:30px;line-height:1.2;margin-top:8px;text-align:center;white-space:normal;word-break:break-word}
   #textDni{font-size:28px;font-weight:800;text-align:center;letter-spacing:2px;text-transform:uppercase}
   .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
   .pad button{font-size:30px;font-weight:700;padding:15px 0;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
@@ -86,36 +91,47 @@
   <h1>Congreso de Suelos <small id="hdrStaff"></small></h1>
   <span class="pill" id="latBadge" title="Latencia promedio de los últimos registros">⏱ –</span>
   <span class="pill" id="queueBadge"></span>
-  <button class="ghost" style="padding:6px 10px" onclick="show('config')">⚙</button>
+  <button class="ghost" style="padding:6px 10px" id="sessBtn" onclick="show('session')">👤</button>
 </header>
 
 <div id="testBanner" class="hidden">⚠ MODO PRUEBA · los registros van al Día 1 · limpiar antes del 18-nov</div>
 <nav id="tabs">
   <button data-mode="checkin" class="active">Asistencia</button>
   <button data-mode="kit">Kit</button>
-  <button data-mode="register">Inscribir</button>
+  <button data-mode="register" class="hidden" id="tabRegister">Inscribir</button>
   <button data-mode="stats">Resumen</button>
 </nav>
 
 <main>
-  <!-- CONFIG -->
-  <section id="view-config" class="hidden">
+  <!-- ACCESO (nombre + puerta + clave; el servidor valida la clave y asigna el rol) -->
+  <section id="view-login" class="hidden">
     <div class="card">
-      <p class="modeTitle">Configuración</p>
-      <label>URL de la API (Apps Script /exec)</label>
-      <input id="cfgApi" placeholder="https://script.google.com/macros/s/.../exec">
-      <label>Clave</label>
-      <input id="cfgKey" type="password">
-      <label>Puerta asignada</label>
-      <select id="cfgPuerta">
+      <div class="logosBig"><img src="logo-inia.png" alt="INIA" onerror="this.remove()"><img src="logo-congreso.png" alt="Congreso" onerror="this.remove()"></div>
+      <p class="modeTitle" style="text-align:center">Acceso de registradores</p>
+      <label>Nombre y apellido *</label>
+      <input id="loginNombre" autocomplete="name" placeholder="Ej. Ana Torres">
+      <label>Puerta asignada *</label>
+      <select id="loginPuerta">
+        <option value="">— Seleccione —</option>
         <option value="1">Puerta 1</option><option value="2">Puerta 2</option><option value="3">Puerta 3</option>
-        <option value="4">Puerta 4</option><option value="5">Puerta 5</option><option value="0">Mesa de inscripción / Otro</option>
+        <option value="4">Puerta 4</option><option value="5">Puerta 5</option><option value="0">Mesa de inscripción</option>
       </select>
-      <label>Tu nombre</label>
-      <input id="cfgStaff" placeholder="Ej. Ana Torres">
+      <label>Clave de acceso *</label>
+      <input id="loginClave" type="password" autocomplete="off" autocapitalize="characters" placeholder="Clave">
       <br><br>
-      <button class="primary" onclick="saveConfig()">Guardar y probar conexión</button>
-      <p id="cfgMsg" style="font-size:14px"></p>
+      <button class="primary" id="loginBtn" onclick="doLogin()">Ingresar</button>
+      <p id="loginMsg" style="font-size:14px"></p>
+    </div>
+  </section>
+
+  <!-- SESIÓN -->
+  <section id="view-session" class="hidden">
+    <div class="card">
+      <p class="modeTitle">Sesión</p>
+      <p id="sessInfo" style="font-size:15px;line-height:1.6"></p>
+      <button class="primary" onclick="doLogout()">Cerrar sesión</button>
+      <br><br>
+      <button class="ghost" style="width:100%" onclick="document.querySelector('#tabs button[data-mode=checkin]').click()">Volver</button>
     </div>
   </section>
 
@@ -141,7 +157,7 @@
         <button class="fn" data-k="del">⌫</button><button>0</button><button class="ok" data-k="ok">OK</button>
       </div>
       <div class="opts">
-        <label><input type="checkbox" id="autoSend" checked> Enviar al completar 8 dígitos</label>
+        <span style="flex:1">Verifique el nombre y presione <b>OK</b></span>
         <button class="ghost" id="abcBtn" style="padding:6px 10px">ABC · CE/Pasaporte</button>
       </div>
       <div class="opts" id="kitOpt">
@@ -163,6 +179,9 @@
       <input id="rDni" autocomplete="off" inputmode="numeric">
       <label>Nombres y apellidos *</label>
       <input id="rNombre" autocomplete="off" style="text-transform:uppercase">
+      <label>Categoría *</label>
+      <input id="rCat" list="catList" autocomplete="off" style="text-transform:uppercase" placeholder="Elija de la lista o escriba">
+      <datalist id="catList"></datalist>
       <label>Institución</label>
       <input id="rInst" autocomplete="off">
       <label>Correo</label>
@@ -241,19 +260,15 @@ if (GAS && BOOT) {
   store.set(LS.cfg, cfg);
 }
 
-// Modo 2: archivo alojado fuera (GitHub Pages) → index.html?api=...&key=...&puerta=3&nombre=Ana
+// Modo 2 (GitHub Pages): la clave NUNCA viaja en el link; se pide en la pantalla de acceso.
+const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbxtkIigC-yUDGwlZHg2-7eujK0bSrcGe306ywEGQg0aXH6esIgUuxCDsdarOW2-SeTf/exec';
+const PREFILL = {};
 (function readUrlParams() {
   const p = new URLSearchParams(location.search);
-  if (p.get('api') || p.get('key')) {
-    cfg.api = p.get('api') || cfg.api;
-    cfg.key = p.get('key') || cfg.key;
-    cfg.puerta = p.get('puerta') || cfg.puerta || '1';
-    cfg.nombre = p.get('nombre') || cfg.nombre || '';
-    cfg.staff = staffId(cfg);
-    store.set(LS.cfg, cfg);
-    // Importante: NO se limpian los parámetros de la URL. En iPhone, "Agregar a pantalla de inicio"
-    // crea un almacenamiento aparte; la URL con parámetros permite que la app se autoconfigure ahí.
-  }
+  if (!GAS) cfg.api = p.get('api') || cfg.api || DEFAULT_API;
+  if (p.get('puerta')) PREFILL.puerta = p.get('puerta');
+  if (p.get('nombre')) PREFILL.nombre = p.get('nombre').replace(/[-_]/g, ' ');
+  if (p.get('key')) history.replaceState(null, '', location.pathname + '?' + [...p].filter(([k]) => k !== 'key').map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&'));
 })();
 
 /* =====================================================================
@@ -306,9 +321,9 @@ function normDni(v) {
    API CLIENT (+ medición de latencia)
    ===================================================================== */
 /** RPC sobre google.script.run, envuelto en Promise y con timeout de 20 s. */
-function gasCall(req) {
+function gasCall(req, timeoutMs = 20000) {
   return new Promise((resolve, reject) => {
-    const to = setTimeout(() => { const e = new Error('timeout'); e.name = 'AbortError'; reject(e); }, 20000);
+    const to = setTimeout(() => { const e = new Error('timeout'); e.name = 'AbortError'; reject(e); }, timeoutMs);
     google.script.run
       .withSuccessHandler(r => { clearTimeout(to); resolve(r); })
       .withFailureHandler(err => {
@@ -322,13 +337,13 @@ function gasCall(req) {
   });
 }
 
-async function api(action, payload = {}) {
+async function api(action, payload = {}, timeoutMs = 20000) {
   lastReqAt = Date.now();
   const device = await deviceReady;
   const ua = navigator.userAgent;
   if (GAS) {
     try {
-      const r = await gasCall({ action, key: cfg.key, staff: cfg.staff, device, ua, ...payload });
+      const r = await gasCall({ action, key: cfg.key, staff: cfg.staff, device, ua, ...payload }, timeoutMs);
       checkBlocked(r);
       setNet(true);
       return r;
@@ -338,7 +353,7 @@ async function api(action, payload = {}) {
     }
   }
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 20000);
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(cfg.api, {
       method: 'POST',
@@ -381,7 +396,7 @@ let LIST = { at: 0, map: {} };
   if (s && s.map) LIST = s;
 })();
 async function refreshList(manual) {
-  if (!cfg.api) return;
+  if (!cfg.api || !cfg.key) return;
   if (manual) { refreshBtn.disabled = true; refreshBtn.textContent = '↻ …'; }
   try {
     const r = await api('list');
@@ -408,7 +423,7 @@ setInterval(renderListInfo, 60 * 1000);
 /* Keep-warm: si el celular está ocioso, un ping cada 60 s mantiene "tibio"
    el contenedor de Apps Script y la conexión TLS abierta → evita arranques en frío. */
 setInterval(async () => {
-  if (!cfg.api || Date.now() - lastReqAt < 45000 || busy) return;
+  if (!cfg.api || !cfg.key || Date.now() - lastReqAt < 45000 || busy) return;
   const t0 = performance.now();
   try { const r = await api('ping'); recordLatency(Math.round(performance.now() - t0), r.ms); applyPing(r); } catch {}
 }, 60000);
@@ -449,7 +464,7 @@ function renderQueue() {
 }
 let flushing = false;
 async function flushQueue() {
-  if (flushing || !cfg.api) return;
+  if (flushing || !cfg.api || !cfg.key) return;
   flushing = true;
   try {
     let q = queue();
@@ -461,7 +476,7 @@ async function flushQueue() {
       } catch (e) {
         break; // cualquier falla (red, timeout, servidor caído): el item SE QUEDA y se reintenta luego
       }
-      if (!r || ['BUSY', 'ERROR', 'DEVICE_LIMIT', 'DEVICE_REQUIRED'].includes(r.status)) break; // no procesado: reintentar
+      if (!r || ['BUSY', 'ERROR', 'DEVICE_LIMIT', 'DEVICE_REQUIRED', 'UNAUTHORIZED'].includes(r.status)) break; // no procesado: reintentar
       addHistory(r, it.action + ' (sincronizado)');
       // Solo ahora (respuesta confirmada del servidor) se elimina de la cola. Idempotente en el backend.
       q = queue().filter(x => (x.id || x.ts) !== (it.id || it.ts));
@@ -476,6 +491,7 @@ function setNet(on) { document.getElementById('net').classList.toggle('off', !on
 
 /** Si el servidor rechaza este celular (límite de dispositivos), se bloquea la app. */
 function checkBlocked(r) {
+  if (r && r.status === 'UNAUTHORIZED' && cfg.key) { forceLogin('La clave ya no es válida. Ingrese la clave vigente.'); return; }
   if (!r || (r.status !== 'DEVICE_LIMIT' && r.status !== 'DEVICE_REQUIRED')) return;
   blockedMsg.textContent = r.msg || '';
   deviceReady.then(id => { blockedId.textContent = 'ID: ' + id; });
@@ -485,10 +501,11 @@ function checkBlocked(r) {
 /** El servidor decide el día y si la ventana de atención está abierta. */
 function applyPing(r) {
   if (!r || !r.ok) return;
-  SRV = { day: r.day, test: !!r.test, abierto: !!r.abierto, horario: r.horario, disp: r.dispositivos || SRV.disp };
-  dayChip.textContent = r.day ? (r.test ? 'PRUEBA · Día 1' : 'Día ' + r.day) : 'Evento cerrado';
-  const h = r.horario ? r.horario.inicio + '–' + r.horario.fin : '';
-  winChip.textContent = r.test ? '⏰ ' + h + ' · libre en prueba' : (r.abierto ? '🟢 Abierto ' : '🔴 Cerrado ') + h;
+  SRV = { day: r.day, test: !!r.test, abierto: !!r.abierto, disp: r.dispositivos || SRV.disp };
+  if (r.role) setRole(r.role);
+  dayChip.textContent = r.day ? (r.test ? 'PRUEBA · Día 1' : 'Día ' + r.day + (r.sesion ? ' · ' + r.sesion : '')) : 'Evento cerrado';
+  const h = r.horarioTxt || '';
+  winChip.textContent = r.test ? '⏰ libre en prueba' : (r.abierto ? '🟢 Abierto · ' : '🔴 Cerrado · ') + h;
   winChip.className = 'chip ' + (r.test ? '' : r.abierto ? 'open' : 'closed');
   testBanner.classList.toggle('hidden', !r.test);
 }
@@ -538,8 +555,8 @@ function presentResult(r, action, payload) {
   // Modo combinado Ingreso + Kit
   if (action === 'checkin' && r.kitStatus && (r.status === 'OK' || r.status === 'DUPLICATE')) {
     const inOk = r.status === 'OK', kitOk = r.kitStatus === 'OK';
-    lastOk = (inOk || kitOk) ? { dni: r.dni, day: r.day, undoIn: inOk, undoKit: kitOk } : null;
-    const big = (inOk ? '✔ INGRESO D' + r.day : '⚠ YA INGRESÓ') + '\n' + (kitOk ? '🎁 ENTREGAR KIT' : '✖ KIT YA ENTREGADO');
+    lastOk = (inOk || kitOk) ? { dni: r.dni, day: r.day, col: r.col, undoIn: inOk, undoKit: kitOk } : null;
+    const big = (inOk ? '✔ INGRESO D' + r.day + (r.sesion ? ' · ' + r.sesion : '') : '⚠ YA INGRESÓ') + '\n' + (kitOk ? '🎁 ENTREGAR KIT' : '✖ KIT YA ENTREGADO');
     const sub = !kitOk ? 'Kit: ' + (r.kitAt || '') + (r.kitBy ? ' · ' + r.kitBy : '') : (r.institucion || '');
     const color = kitOk ? (inOk ? C.ok : C.dup) : (inOk ? C.dup : C.err);
     beep(inOk && kitOk ? 'ok' : 'dup');
@@ -550,8 +567,8 @@ function presentResult(r, action, payload) {
   }
   if (r.status === 'OK') {
     beep('ok');
-    lastOk = { dni: r.dni, day: r.day, undoIn: action === 'checkin', undoKit: action === 'kit' };
-    const big = action === 'kit' ? '🎁 ENTREGAR KIT' : '✔ ASISTENCIA D' + r.day;
+    lastOk = { dni: r.dni, day: r.day, col: r.col, undoIn: action === 'checkin', undoKit: action === 'kit' };
+    const big = action === 'kit' ? '🎁 ENTREGAR KIT' : '✔ ASISTENCIA D' + r.day + (r.sesion ? ' · ' + r.sesion : '');
     const extra = action === 'checkin' && r.day === 1 && !r.kit ? 'Pendiente: recoger kit' : (r.institucion || '');
     // Más tiempo en pantalla para que el staff confirme el nombre con la persona
     showOverlay(C.ok, big, r.nombre, extra, 3500, true, msT);
@@ -583,7 +600,7 @@ undoBtn.addEventListener('click', async ev => {
   showOverlay('#555', '…', 'Anulando', 'DNI ' + p.dni, 20000);
   try {
     let r;
-    if (p.undoIn) r = await api('undo', { dni: p.dni, what: 'checkin', day: p.day });
+    if (p.undoIn) r = await api('undo', { dni: p.dni, what: 'checkin', day: p.day, col: p.col });
     if (p.undoKit && (!r || r.ok)) r = await api('undo', { dni: p.dni, what: 'kit' });
     if (r.ok) { beep('dup'); showOverlay('#34495e', '↶ ANULADO', r.nombre, 'Vuelva a digitar el DNI correcto', 2500); addHistory({ ...r, status: 'ANULADO' }, 'undo'); }
     else presentResult(r, 'undo');
@@ -615,7 +632,7 @@ function renderDni() {
   const hit = dniBuf.length >= 8 ? LIST.map[normDni(dniBuf)] : null;
   const pv = document.getElementById('preview');
   pv.textContent = hit ? '→ ' + hit[0] : '';
-  if (hit && hit[2]) { const c = document.createElement('span'); c.className = 'pcat'; c.textContent = ' · ' + hit[2]; pv.appendChild(c); }
+  if (hit && hit[2]) { const c = document.createElement('span'); c.className = 'pcat'; c.textContent = hit[2]; pv.appendChild(c); }
 }
 
 document.getElementById('pad').addEventListener('click', e => {
@@ -630,13 +647,12 @@ document.getElementById('pad').addEventListener('click', e => {
   if (k === 'del') dniBuf = dniBuf.slice(0, -1);
   else if (dniBuf.length < 12) dniBuf += b.textContent;
   renderDni();
-  if (autoSend.checked && dniBuf.length === 8) submitDni(dniBuf);
 });
 
 // Teclado físico / Bluetooth también funciona
 document.addEventListener('keydown', e => {
   if (document.getElementById('view-scan').classList.contains('hidden') || textMode || busy) return;
-  if (/^\d$/.test(e.key)) { dniBuf += e.key; renderDni(); if (autoSend.checked && dniBuf.length === 8) submitDni(dniBuf); }
+  if (/^\d$/.test(e.key)) { if (dniBuf.length < 12) dniBuf += e.key; renderDni(); }
   else if (e.key === 'Backspace') { dniBuf = dniBuf.slice(0, -1); renderDni(); }
   else if (e.key === 'Enter') submitDni(dniBuf);
 });
@@ -650,8 +666,6 @@ abcBtn.addEventListener('click', () => {
   if (textMode) { textDni.value = ''; textDni.focus(); }
 });
 textDni.addEventListener('keydown', e => { if (e.key === 'Enter') submitDni(textDni.value); });
-autoSend.checked = store.get(LS.auto, true);
-autoSend.addEventListener('change', () => store.set(LS.auto, autoSend.checked));
 withKit.checked = store.get(LS.kit, false);
 withKit.addEventListener('change', () => store.set(LS.kit, withKit.checked));
 
@@ -671,7 +685,7 @@ async function submitDni(raw) {
 
   const t0 = performance.now();
   try {
-    const r = await api(mode, payload);
+    const r = await api(mode, payload, 8000); // señal mala: a los 8 s pasa a la cola y la puerta sigue atendiendo
     r._rtt = Math.round(performance.now() - t0);
     recordLatency(r._rtt, r.ms);
     presentResult(r, mode, payload);
@@ -697,11 +711,11 @@ async function submitDni(raw) {
    ===================================================================== */
 async function registerSubmit() {
   const payload = {
-    dni: normDni(rDni.value), nombre: rNombre.value.trim(), institucion: rInst.value.trim(),
+    dni: normDni(rDni.value), nombre: rNombre.value.trim(), institucion: rInst.value.trim(), categoria: rCat.value.trim().toUpperCase(),
     correo: rCorreo.value.trim(), celular: rCel.value.trim(),
     markAttendance: rAsist.checked, ts: Date.now()
   };
-  if (!payload.dni || !payload.nombre) { alertBox('DNI y nombre son obligatorios'); return; }
+  if (!payload.dni || !payload.nombre || !payload.categoria) { alertBox('DNI, nombre y categoría son obligatorios'); return; }
   try {
     showOverlay('#555', '…', 'Inscribiendo', '', 20000);
     const r = await api('register', payload);
@@ -715,17 +729,23 @@ async function registerSubmit() {
     hideOverlay();
     if (isNetworkError(e)) {
       enqueue({ action: 'register', payload });
-      LIST.map[payload.dni] = [payload.nombre.toUpperCase(), payload.institucion, '']; saveList();
+      LIST.map[payload.dni] = [payload.nombre.toUpperCase(), payload.institucion, payload.categoria]; saveList();
       showRegDone('Guardado sin conexión ⏳', payload.nombre.toUpperCase(), payload.dni);
     } else presentResult({ status: 'ERROR', msg: e.message }, 'register');
   }
+}
+/** Sugerencias de categoría = categorías existentes en la lista oficial (evita errores de tipeo). */
+function fillCategorias() {
+  const set = new Set(Object.values(LIST.map).map(v => v[2]).filter(Boolean));
+  catList.innerHTML = '';
+  [...set].sort().forEach(c => { const o = document.createElement('option'); o.value = c; catList.appendChild(o); });
 }
 function showRegDone(title, nombre, dni, msg) {
   regForm.classList.add('hidden'); regDone.classList.remove('hidden');
   regDoneTitle.textContent = title; regDoneName.textContent = nombre + ' · DNI ' + dni + (msg && msg.includes('NO marcada') ? '  ⚠ ' + msg.split('· ')[1] : '');
 }
 function resetRegister() {
-  ['rDni', 'rNombre', 'rInst', 'rCorreo', 'rCel'].forEach(id => document.getElementById(id).value = '');
+  ['rDni', 'rNombre', 'rCat', 'rInst', 'rCorreo', 'rCel'].forEach(id => document.getElementById(id).value = '');
   regDone.classList.add('hidden'); regForm.classList.remove('hidden'); rDni.focus();
 }
 function alertBox(msg) { beep('err'); showOverlay('var(--err)', '✖', msg, '', 2500); }
@@ -759,7 +779,8 @@ async function loadStats() {
     recordLatency(Math.round(performance.now() - t0), r.ms);
     if (!r.ok) throw new Error(r.msg);
     const cells = [['Inscritos', r.total], ['Kits entregados', r.kits]];
-    r.dias.forEach((n, i) => cells.push(['Asistencia D' + (i + 1), n]));
+    if (r.sesiones) r.sesiones.forEach(x => cells.push([x.label, x.n]));
+    else r.dias.forEach((n, i) => cells.push(['Asistencia D' + (i + 1), n]));
     cells.push(['Inscritos en sitio', r.enSitio]);
     Object.keys(r.puertas || {}).sort().forEach(p => cells.push([p + ' · hoy', r.puertas[p]]));
     tiles(g, cells);
@@ -771,15 +792,37 @@ async function loadStats() {
    NAVEGACIÓN
    ===================================================================== */
 function show(view) {
-  ['config', 'scan', 'register', 'stats'].forEach(v => document.getElementById('view-' + v).classList.toggle('hidden', v !== view));
-  if (view === 'config') {
-    cfgApi.value = GAS ? '(integrada en Apps Script)' : cfg.api;
-    cfgApi.disabled = cfgKey.disabled = GAS;
-    cfgKey.value = cfg.key; cfgStaff.value = cfg.nombre || ''; cfgPuerta.value = cfg.puerta || '1';
+  ['login', 'session', 'scan', 'register', 'stats'].forEach(v => document.getElementById('view-' + v).classList.toggle('hidden', v !== view));
+  const logged = !!cfg.key;
+  document.getElementById('tabs').classList.toggle('hidden', !logged);
+  sessBtn.classList.toggle('hidden', !logged);
+  if (view === 'login') {
+    loginNombre.value = cfg.nombre || PREFILL.nombre || '';
+    loginPuerta.value = cfg.puerta != null && cfg.puerta !== '' && cfg.role ? cfg.puerta : (PREFILL.puerta || '');
+    loginClave.value = '';
+  }
+  if (view === 'session') {
+    deviceReady.then(id => {
+      sessInfo.innerHTML = '';
+      [['Nombre', cfg.nombre], ['Puesto', cfg.puerta === '0' ? 'Mesa de inscripción' : 'Puerta ' + cfg.puerta],
+       ['Rol', cfg.role === 'inscriptor' ? 'Inscriptor (puede inscribir)' : 'Registrador de asistencia'],
+       ['Pendientes por sincronizar', queue().length], ['Dispositivo', id.slice(0, 8) + '…']].forEach(([k, v]) => {
+        const b = document.createElement('b'); b.textContent = k + ': '; sessInfo.append(b, String(v), document.createElement('br'));
+      });
+    });
   }
 }
+function setRole(role) {
+  cfg.role = role; store.set(LS.cfg, cfg);
+  tabRegister.classList.toggle('hidden', role !== 'inscriptor');
+  if (role !== 'inscriptor' && mode === 'register') document.querySelector('#tabs button[data-mode="checkin"]').click();
+}
+function forceLogin(msg) {
+  cfg.key = ''; cfg.role = ''; store.set(LS.cfg, cfg);
+  show('login'); loginMsg.innerHTML = ''; const s = document.createElement('span'); s.className = 'err'; s.textContent = msg || ''; loginMsg.appendChild(s);
+}
 document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => {
-  if (!cfg.api) { show('config'); return; }
+  if (!cfg.key) { show('login'); return; }
   document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('active', x === b));
   mode = b.dataset.mode;
   if (mode === 'checkin' || mode === 'kit') {
@@ -787,31 +830,53 @@ document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click
     kitOpt.style.display = mode === 'kit' ? 'none' : '';
     dniBuf = ''; renderDni(); renderListInfo();
     show('scan');
-  } else if (mode === 'register') show('register');
+  } else if (mode === 'register') { fillCategorias(); show('register'); }
   else { show('stats'); loadStats(); }
 }));
 
 refreshBtn.addEventListener('click', () => refreshList(true));
 
-async function saveConfig() {
-  cfg = GAS
-    ? { ...cfg, nombre: cfgStaff.value.trim(), puerta: cfgPuerta.value }
-    : { api: cfgApi.value.trim(), key: cfgKey.value.trim(), nombre: cfgStaff.value.trim(), puerta: cfgPuerta.value };
+async function doLogin() {
+  const nombre = loginNombre.value.trim(), puerta = loginPuerta.value, clave = loginClave.value.trim().toUpperCase();
+  const fail = m => { loginMsg.innerHTML = ''; const s = document.createElement('span'); s.className = 'err'; s.textContent = m; loginMsg.appendChild(s); beep('err'); };
+  if (nombre.length < 3) return fail('Ingrese su nombre y apellido');
+  if (puerta === '') return fail('Seleccione su puerta');
+  if (!clave) return fail('Ingrese la clave de acceso');
+  loginBtn.disabled = true; loginMsg.textContent = 'Verificando…';
+  const prev = { ...cfg };
+  cfg = { ...cfg, key: clave, nombre, puerta };
   cfg.staff = staffId(cfg);
-  store.set(LS.cfg, cfg);
-  cfgMsg.textContent = 'Probando…';
   try {
     const t0 = performance.now();
     const r = await api('ping');
-    if (!r.ok) throw new Error(r.msg || r.status);
+    if (!r.ok) {
+      cfg = { ...prev, key: '', role: '' }; store.set(LS.cfg, cfg);
+      if (r.status === 'UNAUTHORIZED') return fail('Clave incorrecta');
+      if (r.status === 'DEVICE_LIMIT') return;               // ya se mostró la pantalla de bloqueo
+      return fail(r.msg || r.status);
+    }
+    store.set(LS.cfg, cfg);
     recordLatency(Math.round(performance.now() - t0), r.ms);
     applyPing(r);
     hdrStaff.textContent = '· ' + cfg.staff;
-    cfgMsg.textContent = '✔ Conectado' + (r.day ? ' · Hoy es el día ' + r.day : ' · (hoy no es día del evento)') + ' · descargando lista…';
+    loginMsg.textContent = '✔ Acceso concedido · descargando lista…';
     await refreshList();
-    cfgMsg.textContent += ' ✔ ' + Object.keys(LIST.map).length + ' participantes';
-    setTimeout(() => document.querySelector('#tabs button[data-mode="checkin"]').click(), 900);
-  } catch (e) { cfgMsg.textContent = '✖ ' + e.message; }
+    beep('ok');
+    document.querySelector('#tabs button[data-mode="checkin"]').click();
+    flushQueue();
+  } catch (e) {
+    cfg = { ...prev, key: '', role: '' }; store.set(LS.cfg, cfg);
+    fail(isNetworkError(e) ? 'Sin conexión: el primer ingreso necesita internet' : e.message);
+  } finally { loginBtn.disabled = false; }
+}
+loginClave.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function doLogout() {
+  const n = queue().length;
+  if (n) { alertBox('Hay ' + n + ' registros pendientes de sincronizar. Espere a tener señal antes de cerrar sesión.'); return; }
+  cfg.key = ''; cfg.role = ''; store.set(LS.cfg, cfg);
+  hdrStaff.textContent = ''; tabRegister.classList.add('hidden');
+  show('login'); loginMsg.textContent = 'Sesión cerrada.';
 }
 
 /* =====================================================================
@@ -820,14 +885,16 @@ async function saveConfig() {
 (async function init() {
   setNet(navigator.onLine); renderQueue(); renderListInfo();
   await recoverStorage();
-  hdrStaff.textContent = cfg.api ? '· ' + cfg.staff : '';
-  if (!cfg.api) { show('config'); return; }
+  hdrStaff.textContent = cfg.key ? '· ' + cfg.staff : '';
+  if (!cfg.key) { show('login'); return; }
+  setRole(cfg.role || 'registrador');
   document.querySelector('#tabs button[data-mode="checkin"]').click();
   try {
     const t0 = performance.now();
-    const r = await api('ping');
+    const r = await api('ping');                       // si la clave cambió, checkBlocked() lleva al acceso
     if (r.ok) { applyPing(r); recordLatency(Math.round(performance.now() - t0), r.ms); }
   } catch {}
+  if (!cfg.key) return;
   refreshList();
   flushQueue();
 })();
