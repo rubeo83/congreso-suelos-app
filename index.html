@@ -2,12 +2,15 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#3b2a1a">
 <title>Congreso de Suelos · Control</title>
 <style>
   :root{--bg:#f6f1ea;--ink:#2b2118;--muted:#7a6a5a;--brand:#5b3b22;--ok:#1f8a4c;--dup:#c98a00;--err:#c0392b;--card:#fff;--line:#e4d9cc;--pend:#2c3e50}
   *{box-sizing:border-box}
+  html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior:none}
+  button,select,input,label,.pad,.pad button{touch-action:manipulation}
+  .pad button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);-webkit-tap-highlight-color:transparent;user-select:none}
   header{background:var(--brand);color:#fff;padding:8px 12px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:5}
   header h1{font-size:15px;margin:0;flex:1;line-height:1.2}
@@ -635,8 +638,9 @@ function renderDni() {
   if (hit && hit[2]) { const c = document.createElement('span'); c.className = 'pcat'; c.textContent = hit[2]; pv.appendChild(c); }
 }
 
-document.getElementById('pad').addEventListener('click', e => {
+function padPress(e) {
   const b = e.target.closest('button'); if (!b || busy) return;
+  if (e.cancelable) e.preventDefault();               // evita foco/zoom del navegador
   const k = b.dataset.k;
   if (textMode) { // en modo texto el teclado numérico también escribe en el input
     if (k === 'ok') return submitDni(textDni.value);
@@ -647,7 +651,20 @@ document.getElementById('pad').addEventListener('click', e => {
   if (k === 'del') dniBuf = dniBuf.slice(0, -1);
   else if (dniBuf.length < 12) dniBuf += b.textContent;
   renderDni();
-});
+}
+const padEl = document.getElementById('pad');
+if (window.PointerEvent) padEl.addEventListener('pointerdown', padPress);
+else padEl.addEventListener('click', padPress);       // navegadores muy antiguos
+// En iOS el 2.º toque rápido sobre el teclado se interpreta como zoom: se cancela el touchend.
+padEl.addEventListener('touchend', e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+// Bloquea el zoom por pellizco y por doble toque en toda la app (Safari ignora maximum-scale)
+['gesturestart', 'gesturechange', 'gestureend'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTouchEnd < 350 && e.cancelable && !e.target.closest('input,select,textarea')) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
 
 // Teclado físico / Bluetooth también funciona
 document.addEventListener('keydown', e => {
