@@ -117,7 +117,9 @@
       <select id="loginPuerta">
         <option value="">— Seleccione —</option>
         <option value="1">Puerta 1</option><option value="2">Puerta 2</option><option value="3">Puerta 3</option>
-        <option value="4">Puerta 4</option><option value="5">Puerta 5</option><option value="0">Mesa de inscripción</option>
+        <option value="4">Puerta 4</option><option value="5">Puerta 5</option>
+        <option value="6">Puerta 6</option><option value="7">Puerta 7</option><option value="8">Puerta 8</option>
+        <option value="9">Puerta 9</option><option value="10">Puerta 10</option><option value="0">Mesa de inscripción</option>
       </select>
       <label>Clave de acceso *</label>
       <input id="loginClave" type="password" autocomplete="off" autocapitalize="characters" placeholder="Clave">
@@ -720,6 +722,9 @@ async function submitDni(raw) {
     } else {
       presentResult({ status: 'ERROR', msg: e.message }, mode);
     }
+  } finally {
+    // "Ingreso + Kit" es por persona: se desmarca tras cada registro para no entregar kits por error
+    if (payload.withKit) { withKit.checked = false; store.set(LS.kit, false); }
   }
 }
 
