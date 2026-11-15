@@ -481,7 +481,7 @@ async function flushQueue() {
       } catch (e) {
         break; // cualquier falla (red, timeout, servidor caído): el item SE QUEDA y se reintenta luego
       }
-      if (!r || ['BUSY', 'ERROR', 'DEVICE_LIMIT', 'DEVICE_REQUIRED', 'UNAUTHORIZED'].includes(r.status)) break; // no procesado: reintentar
+      if (!r || ['BUSY', 'ERROR', 'DEVICE_LIMIT', 'DEVICE_REQUIRED', 'UNAUTHORIZED', 'DOOR_TAKEN'].includes(r.status)) break; // no procesado: reintentar
       addHistory(r, it.action + ' (sincronizado)');
       // Solo ahora (respuesta confirmada del servidor) se elimina de la cola. Idempotente en el backend.
       q = queue().filter(x => (x.id || x.ts) !== (it.id || it.ts));
@@ -497,6 +497,7 @@ function setNet(on) { document.getElementById('net').classList.toggle('off', !on
 /** Si el servidor rechaza este celular (límite de dispositivos), se bloquea la app. */
 function checkBlocked(r) {
   if (r && r.status === 'UNAUTHORIZED' && cfg.key) { forceLogin('La clave ya no es válida. Ingrese la clave vigente.'); return; }
+  if (r && r.status === 'DOOR_TAKEN' && cfg.key) { forceLogin(r.msg); return; }
   if (!r || (r.status !== 'DEVICE_LIMIT' && r.status !== 'DEVICE_REQUIRED')) return;
   blockedMsg.textContent = r.msg || '';
   deviceReady.then(id => { blockedId.textContent = 'ID: ' + id; });
@@ -874,6 +875,7 @@ async function doLogin() {
     if (!r.ok) {
       cfg = { ...prev, key: '', role: '' }; store.set(LS.cfg, cfg);
       if (r.status === 'UNAUTHORIZED') return fail('Clave incorrecta');
+      if (r.status === 'DOOR_TAKEN') return fail('⛔ ' + r.msg);
       if (r.status === 'DEVICE_LIMIT') return;               // ya se mostró la pantalla de bloqueo
       return fail(r.msg || r.status);
     }
@@ -893,12 +895,15 @@ async function doLogin() {
 }
 loginClave.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
-function doLogout() {
+async function doLogout() {
   const n = queue().length;
   if (n) { alertBox('Hay ' + n + ' registros pendientes de sincronizar. Espere a tener señal antes de cerrar sesión.'); return; }
+  // Libera la puerta en el servidor para que otro celular pueda tomarla (si no hay red, la libera el coordinador)
+  let liberada = false;
+  try { const r = await api('logout', {}, 6000); liberada = !!(r && r.ok); } catch {}
   cfg.key = ''; cfg.role = ''; store.set(LS.cfg, cfg);
   hdrStaff.textContent = ''; tabRegister.classList.add('hidden');
-  show('login'); loginMsg.textContent = 'Sesión cerrada.';
+  show('login'); loginMsg.textContent = liberada ? 'Sesión cerrada. La puerta quedó libre.' : 'Sesión cerrada (sin red: la puerta sigue asignada a este celular).';
 }
 
 /* =====================================================================
