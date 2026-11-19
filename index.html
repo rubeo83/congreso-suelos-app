@@ -84,6 +84,9 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
 .lookup-result p { margin:0 0 8px; }
 .lookup-result button { display:block; width:100%; min-height:44px; margin:6px 0 0; }
 .lookup-result .missing-data { border-color:var(--brand); color:var(--brand); font-weight:700; }
+#cancelSession { width:100%; min-height:44px; margin-top:8px; }
+#participantData div { grid-template-columns:minmax(0, 42%) minmax(0, 1fr); }
+#profileKitMount:not(:empty) { margin-bottom:12px; }
 </style>
 </head>
 <body>
@@ -163,6 +166,7 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
       <div id="dniLookupResult"></div>
       <button id="dniOfflineBtn" class="ghost" type="button" hidden>Registrar sin conexión</button>
       </div>
+      <div id="scanKitMount"></div>
       <div class="opts" id="kitOpt">
         <label><input type="checkbox" id="withKit"> <b>Ingreso + Kit</b>&nbsp;(entregar kit en esta puerta)</label>
       </div>
@@ -180,6 +184,7 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
       <h2 class="modeTitle">Ficha de inscripción</h2>
       <p id="participantNotice" role="status"></p>
       <dl class="session-data" id="participantData"></dl>
+      <div id="profileKitMount"></div>
       <button id="participantRecord" class="primary" type="button">Registrar asistencia</button>
       <button id="participantBack" class="ghost" type="button">Volver a la búsqueda</button>
     </div>
@@ -193,6 +198,7 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
     </dl>
     <p id="sessionStatus" role="status"></p>
     <button class="primary" id="logoutBtn" type="button">Cerrar sesión</button>
+    <button class="ghost" id="cancelSession" type="button">Cancelar</button>
   </dialog>
   <dialog id="profileDialog">
     <form id="profileForm">
@@ -380,9 +386,9 @@ async function refreshList() {
     const r = await api('localRoster');
     if (!r.ok) throw new Error(r.msg || 'Descarga fallida');
     const map = Object.create(null);
-    const rows = r.items.map(([dni,nombre,alias,row,mask]) => {
+    const rows = r.items.map(([dni,nombre,alias,row,mask,categoria = '']) => {
       if (dni && !map[dni]) map[dni] = [nombre || alias];
-      return {dni,nombre,alias,row,search:foldName(nombre+' '+alias),missing:rosterLabels.filter((_,j)=>mask & (1<<j))};
+      return {dni,nombre,alias,row,categoria,search:foldName(nombre+' '+alias),missing:rosterLabels.filter((_,j)=>mask & (1<<j))};
     });
     LIST = {at:Date.now(),map,rows};
   } catch { rosterError = 'No se pudo actualizar. '; }
@@ -745,6 +751,8 @@ async function loadStats() {
    NAVEGACIÓN
    ===================================================================== */
 function show(view) {
+  (view === 'participant' ? profileKitMount : scanKitMount).append(kitOpt);
+  kitOpt.style.display = mode === 'kit' ? 'none' : '';
   ['config', 'scan', 'register', 'stats', 'participant'].forEach(v => document.getElementById('view-' + v).classList.toggle('hidden', v !== view));
   if (view === 'config') {
     cfgApi.value = GAS ? '(integrada en Apps Script)' : DEFAULT_API;
@@ -805,6 +813,7 @@ async function saveConfig() {
   } catch (e) { cfgMsg.textContent = e.message; }
 }
 
+cancelSession.onclick = () => sessionDialog.close();
 sessionMenuBtn.onclick = () => {
   if (!active || sessionDialog.open) return;
   sessionOperator.textContent = cfg.nombre;
@@ -829,7 +838,7 @@ logoutBtn.onclick = async () => {
     return;
   }
   active = false;
-  logoutBtn.disabled = true;
+  logoutBtn.disabled = cancelSession.disabled = true;
   sessionStatus.textContent = 'Cerrando sesión…';
   try {
     const r = await api('logout');
@@ -856,7 +865,7 @@ logoutBtn.onclick = async () => {
     active = true;
     sessionStatus.textContent = e.message;
   } finally {
-    logoutBtn.disabled = false;
+    logoutBtn.disabled = cancelSession.disabled = false;
   }
 };
 
@@ -893,6 +902,12 @@ function addProfileLink(record) {
 }
 
 profileClose.onclick = () => profileDialog.close();
+function updateProfileAction() {
+  participantRecord.textContent = mode === 'kit' ? 'Confirmar entrega de kit'
+    : withKit.checked ? 'Registrar asistencia y kit' : 'Registrar asistencia';
+}
+withKit.addEventListener('change', updateProfileAction);
+
 function showParticipant(record, saved = false) {
   participantData.replaceChildren();
   participantNotice.textContent = saved ? 'Datos guardados.' : '';
@@ -906,8 +921,7 @@ function showParticipant(record, saved = false) {
     participantData.append(row);
   });
   participantRecord.disabled = !record.dni || LIST.rows.filter(p=>p.dni===record.dni).length>1;
-  participantRecord.textContent = mode === 'kit' ? 'Confirmar entrega de kit'
-    : withKit.checked ? 'Registrar asistencia y kit' : 'Registrar asistencia';
+  updateProfileAction();
   participantRecord.onclick = () => {
     show('scan');
     submitDni(record.dni, true);
@@ -921,7 +935,7 @@ function renderLookupResult(record) {
   const card = document.createElement('article');
   card.className = 'lookup-result';
   const description = document.createElement('p');
-  description.textContent = [record.nombre || record.alias || record.fields?.[1]?.value, record.institucion, record.dni || 'Sin documento'].filter(Boolean).join(' · ');
+  description.textContent = [record.nombre || record.alias || record.fields?.[1]?.value, record.categoria, record.institucion, record.dni || 'Sin documento'].filter(Boolean).join(' · ');
   const action = document.createElement('button');
   action.type = 'button';
   action.className = 'ghost';
