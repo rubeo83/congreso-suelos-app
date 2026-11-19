@@ -79,6 +79,11 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
 .session-data dt { color:var(--muted); }
 .session-data dd { margin:0; font-weight:600; overflow-wrap:anywhere; }
 #sessionStatus:empty { display:none; }
+#profileClose, #participantBack { width:100%; min-height:48px; margin-top:8px; }
+.lookup-result { margin-top:10px; padding:12px; border:1px solid var(--line); border-radius:10px; }
+.lookup-result p { margin:0 0 8px; }
+.lookup-result button { display:block; width:100%; min-height:44px; margin:6px 0 0; }
+.lookup-result .missing-data { border-color:var(--brand); color:var(--brand); font-weight:700; }
 </style>
 </head>
 <body>
@@ -101,7 +106,7 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
 <main>
   <!-- CONFIG -->
   <section id="view-config" class="hidden">
-    <div class="card">
+    <form id="loginForm" class="card">
       <p class="modeTitle">Configuración</p>
       <label>URL de la API (Apps Script /exec)</label>
       <input id="cfgApi" placeholder="https://script.google.com/macros/s/.../exec">
@@ -109,12 +114,12 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
       <input id="cfgKey" type="password">
       <label>Puerta asignada</label>
       <select id="cfgPuerta"></select>
-      <label>Tu nombre</label>
-      <input id="cfgStaff" placeholder="Ej. Ana Torres">
+      <label for="cfgStaff">Tu nombre (obligatorio)</label>
+      <input id="cfgStaff" placeholder="Ej. Ana Torres" autocomplete="name" required>
       <br><br>
-      <button class="primary" onclick="saveConfig()">Guardar y probar conexión</button>
-      <p id="cfgMsg" style="font-size:14px"></p>
-    </div>
+      <button class="primary" type="submit">Iniciar sesión</button>
+      <p id="cfgMsg" role="status" style="font-size:14px"></p>
+    </form>
   </section>
 
   <!-- INGRESO POR DNI (checkin / kit) -->
@@ -155,6 +160,7 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
       </div>
       <button id="dniLookupBtn" class="primary search-submit" type="button">Buscar inscrito</button>
       <p id="dniLookupStatus" role="status"></p>
+      <div id="dniLookupResult"></div>
       <button id="dniOfflineBtn" class="ghost" type="button" hidden>Registrar sin conexión</button>
       </div>
       <div class="opts" id="kitOpt">
@@ -169,6 +175,15 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
     </div>
   </section>
 
+  <section id="view-participant" class="hidden">
+    <div class="card">
+      <h2 class="modeTitle">Ficha de inscripción</h2>
+      <p id="participantNotice" role="status"></p>
+      <dl class="session-data" id="participantData"></dl>
+      <button id="participantRecord" class="primary" type="button">Registrar asistencia</button>
+      <button id="participantBack" class="ghost" type="button">Volver a la búsqueda</button>
+    </div>
+  </section>
   <dialog id="sessionDialog" aria-labelledby="sessionTitle">
     <h2 id="sessionTitle">Mi sesión</h2>
     <dl class="session-data">
@@ -186,8 +201,7 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
       <div id="profileFields"></div>
       <p id="profileStatus" role="status"></p>
       <button class="primary">Guardar datos</button>
-      <button id="profileContinue" type="button">Registrar con este documento</button>
-      <button id="profileClose" type="button">Cerrar</button>
+      <button id="profileClose" class="ghost" type="button">Cerrar</button>
     </form>
   </dialog>
 
@@ -559,6 +573,7 @@ function addHistory(r, action, undo) {
    ===================================================================== */
 function renderDni() {
   document.getElementById('dniLookupStatus').textContent = '';
+  document.getElementById('dniLookupResult').replaceChildren();
   document.getElementById('dniOfflineBtn').hidden = true;
   const d = document.getElementById('dniDisplay');
   d.textContent = dniBuf || 'Digite el DNI';
@@ -725,12 +740,12 @@ async function loadStats() {
    NAVEGACIÓN
    ===================================================================== */
 function show(view) {
-  ['config', 'scan', 'register', 'stats'].forEach(v => document.getElementById('view-' + v).classList.toggle('hidden', v !== view));
+  ['config', 'scan', 'register', 'stats', 'participant'].forEach(v => document.getElementById('view-' + v).classList.toggle('hidden', v !== view));
   if (view === 'config') {
     cfgApi.value = GAS ? '(integrada en Apps Script)' : DEFAULT_API;
     cfgApi.disabled = true;
     cfgKey.disabled = cfgPuerta.disabled = active;
-    cfgKey.value = cfg.key; cfgStaff.value = cfg.nombre || ''; cfgPuerta.value = cfg.puerta || '1';
+    cfgKey.value = cfg.key; cfgStaff.value = ''; cfgPuerta.value = cfg.puerta || '1';
   }
 }
 document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => {
@@ -750,11 +765,21 @@ function updateSessionLabel(r) {
   document.getElementById('sessionLabel').textContent = r.day && !r.test ? 'Día ' + r.day + ' · ' + (r.sesion || '') + ' ' + r.horarioTxt : 'Evento cerrado';
 }
 
+document.getElementById('loginForm').onsubmit = event => {
+  event.preventDefault();
+  saveConfig();
+};
+
 async function saveConfig() {
   if (active || inFlight) return;
   cfg = { api: GAS ? 'gas' : DEFAULT_API, key: cfgKey.value.trim(),
     nombre: cfgStaff.value.trim(), puerta: cfgPuerta.value };
-  if (!cfg.api || !cfg.key || !cfg.nombre) { cfgMsg.textContent = 'Ingrese la clave y su nombre'; return; }
+  if (!cfg.nombre) {
+    cfgMsg.textContent = 'Ingrese su nombre para iniciar sesión.';
+    cfgStaff.focus();
+    return;
+  }
+  if (!cfg.api || !cfg.key) { cfgMsg.textContent = 'Ingrese la clave.'; return; }
   cfg.staff = staffId(cfg);
   cfgMsg.textContent = 'Verificando puesto…';
   try {
@@ -807,6 +832,9 @@ logoutBtn.onclick = async () => {
     LIST = { at: 0, map: {} };
     document.getElementById('hist').replaceChildren();
     personMatches.replaceChildren();
+    document.getElementById('dniLookupResult').replaceChildren();
+    participantData.replaceChildren();
+    participantRecord.onclick = null;
     personQuery.value = '';
     resetRegister();
     profileFields.replaceChildren();
@@ -845,9 +873,6 @@ function openProfile(record) {
     label.append(input);
     profileFields.append(label);
   });
-  profileContinue.disabled = !record.dni;
-  profileContinue.textContent = mode === 'kit' ? 'Confirmar entrega de kit'
-    : withKit.checked ? 'Registrar asistencia y kit' : 'Registrar asistencia';
   if (!profileDialog.open) profileDialog.showModal();
 }
 
@@ -863,11 +888,51 @@ function addProfileLink(record) {
 }
 
 profileClose.onclick = () => profileDialog.close();
-profileContinue.onclick = () => {
-  const dni = profileRecord.dni;
-  profileDialog.close();
-  submitDni(dni, true);
-};
+function showParticipant(record, saved = false) {
+  participantData.replaceChildren();
+  participantNotice.textContent = saved ? 'Datos guardados.' : '';
+  record.fields.filter(field => field.mapped && field.label !== 'NOMBRES CORREGIDOS').forEach(field => {
+    const row = document.createElement('div');
+    const label = document.createElement('dt');
+    const value = document.createElement('dd');
+    label.textContent = field.label;
+    value.textContent = field.value || 'Pendiente';
+    row.append(label, value);
+    participantData.append(row);
+  });
+  participantRecord.disabled = !record.dni;
+  participantRecord.textContent = mode === 'kit' ? 'Confirmar entrega de kit'
+    : withKit.checked ? 'Registrar asistencia y kit' : 'Registrar asistencia';
+  participantRecord.onclick = () => {
+    show('scan');
+    submitDni(record.dni, true);
+  };
+  show('participant');
+}
+
+participantBack.onclick = () => show('scan');
+
+function renderLookupResult(record) {
+  const card = document.createElement('article');
+  card.className = 'lookup-result';
+  const description = document.createElement('p');
+  description.textContent = [record.nombre || record.fields[1]?.value, record.institucion, record.dni || 'Sin documento'].filter(Boolean).join(' · ');
+  const action = document.createElement('button');
+  action.type = 'button';
+  action.className = 'ghost';
+  action.textContent = 'Ver ficha de inscripción';
+  action.onclick = () => showParticipant(record);
+  card.append(description, action);
+  if (record.missing.length) {
+    const missing = document.createElement('button');
+    missing.type = 'button';
+    missing.className = 'ghost missing-data';
+    missing.textContent = 'Faltan datos: ' + record.missing.join(', ');
+    missing.onclick = () => openProfile(record);
+    card.append(missing);
+  }
+  return card;
+}
 profileForm.onsubmit = async event => {
   event.preventDefault();
   const button = event.submitter;
@@ -876,8 +941,10 @@ profileForm.onsubmit = async event => {
     const fields = Object.fromEntries(new FormData(profileForm));
     const r = await api('complete', { row: profileRecord.row, ref: profileRecord.ref, fields });
     if (!r.ok) throw new Error(r.msg || r.status);
-    openProfile(r);
-    profileStatus.textContent = 'Datos guardados';
+    profileDialog.close();
+    document.getElementById('dniLookupResult').replaceChildren();
+    personMatches.replaceChildren();
+    showParticipant(r, true);
     refreshList();
   } catch (error) { profileStatus.textContent = error.message; }
   finally { button.disabled = false; }
@@ -904,6 +971,7 @@ dniToggle.onclick = () => showSearch(false);
 nameToggle.onclick = () => showSearch(true);
 lookupButton.onclick = lookupDni;
 textDni.addEventListener('input', () => {
+  document.getElementById('dniLookupResult').replaceChildren();
   offlineDni = '';
   offlineButton.hidden = true;
   lookupStatus.textContent = '';
@@ -919,6 +987,7 @@ async function lookupDni() {
   if (!active || lookupButton.disabled || busy || profileDialog.open) return;
   const raw = (textMode ? textDni.value : dniBuf).trim();
   lookupStatus.textContent = '';
+  document.getElementById('dniLookupResult').replaceChildren();
   offlineButton.hidden = true;
   offlineDni = '';
   if (!(textMode ? /^[A-Za-z0-9][A-Za-z0-9. -]{5,19}$/.test(raw) : /^\d{8}$/.test(raw))) {
@@ -932,7 +1001,9 @@ async function lookupDni() {
     const record = await api('lookup', { dni });
     if (!record.ok) throw new Error(record.msg || 'No se encontró el documento.');
     lookupStatus.textContent = '';
-    if (active && !dniPanel.hidden && raw === (textMode ? textDni.value : dniBuf).trim()) openProfile(record);
+    if (active && !dniPanel.hidden && raw === (textMode ? textDni.value : dniBuf).trim()) {
+      document.getElementById('dniLookupResult').replaceChildren(renderLookupResult(record));
+    }
   } catch (error) {
     if (isNetworkError(error)) {
       lookupStatus.textContent = 'Sin conexión para consultar el padrón.';
@@ -957,14 +1028,7 @@ nameSearch.onsubmit = async event => {
     if (!r.ok) throw new Error(r.msg || r.status);
     personMatches.replaceChildren();
     if (!r.matches.length) personMatches.textContent = 'No se encontraron inscritos. Prueba con un solo apellido.';
-    r.matches.forEach(person => {
-      const option = document.createElement('button');
-      option.type = 'button';
-      option.className = 'ghost';
-      option.textContent = [person.nombre || person.fields[1].value, person.institucion, person.dni || 'Sin documento'].filter(Boolean).join(' · ');
-      option.onclick = () => openProfile(person);
-      personMatches.append(option);
-    });
+    r.matches.forEach(person => personMatches.append(renderLookupResult(person)));
   } catch (error) { personMatches.textContent = error.message; }
   finally { button.disabled = false; }
 };
