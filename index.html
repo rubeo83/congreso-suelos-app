@@ -228,6 +228,8 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
       <input id="rDni" autocomplete="off" inputmode="numeric">
       <label>Nombres y apellidos *</label>
       <input id="rNombre" autocomplete="off" style="text-transform:uppercase">
+      <label for="rCategoria">Categoría *</label>
+      <input id="rCategoria" required autocomplete="off">
       <label>Institución</label>
       <input id="rInst" autocomplete="off">
       <label>Correo</label>
@@ -728,9 +730,10 @@ async function registerSubmit() {
   
   const payload = {
     dni: normDni(rDni.value), nombre: rNombre.value.trim(), institucion: rInst.value.trim(),
-    correo: rCorreo.value.trim(), celular: rCel.value.trim(),
+    categoria: rCategoria.value.trim(), correo: rCorreo.value.trim(), celular: rCel.value.trim(),
     markAttendance: rAsist.checked, ts: Date.now()
   };
+  if (!payload.categoria) { alertBox('Ingresa la categoría del participante.'); rCategoria.focus(); return; }
   if (!payload.dni || !payload.nombre) { alertBox('DNI y nombre son obligatorios'); return; }
   busy = true;
   try {
@@ -757,7 +760,7 @@ function showRegDone(title, nombre, dni) {
   regDoneTitle.textContent = title; regDoneName.textContent = nombre + ' · DNI ' + dni;
 }
 function resetRegister() {
-  ['rDni', 'rNombre', 'rInst', 'rCorreo', 'rCel'].forEach(id => document.getElementById(id).value = '');
+  ['rDni', 'rNombre', 'rCategoria', 'rInst', 'rCorreo', 'rCel'].forEach(id => document.getElementById(id).value = '');
   regDone.classList.add('hidden'); regForm.classList.remove('hidden'); rDni.focus();
 }
 function alertBox(msg) { beep('err'); showOverlay('var(--err)', '✖', msg, '', 2500); }
