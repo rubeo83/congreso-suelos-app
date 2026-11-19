@@ -129,7 +129,7 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
         <p class="modeTitle" id="scanTitle" style="flex:1">Asistencia</p>
         <span id="sessionLabel"></span>
       </div>
-      <div class="listInfo" id="listInfo">Lista local: cargando…</div>
+      <div class="listInfo" id="listInfo" role="status"></div><button class="ghost" id="updateRoster" type="button">Actualizar padrón</button>
     </div>
 
     <div class="card">
@@ -367,27 +367,31 @@ const pct = (arr, p) => { if (!arr.length) return '–'; const s = [...arr].sort
    El nombre aparece en < 10 ms sin esperar a la red.
    El servidor sigue siendo la fuente de verdad (duplicados entre puertas).
    ===================================================================== */
-let LIST = { at: 0, map: {} };
+let LIST = {at:0,map:{},rows:[]};
+const rosterLabels = ['NOMBRES','NOMBRES CORREGIDOS','CATEGORÍA','INSTITUCIÓN','CORREO','DNI/PASAPORTE','CELULAR'];
+const foldName = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+let rosterError = '';
 async function refreshList() {
-  if (!active) return;
-  try {
-    const r = await api('list');
-    if (!r.ok) return;
-    const map = {};
-    r.items.forEach(([d, n, i]) => { map[d] = [n, i]; });
-    LIST = { at: Date.now(), map };
-
-  } catch {}
+  if (!active || updateRoster.disabled) return;
+  updateRoster.disabled = true;
+  rosterError = '';
   renderListInfo();
+  try {
+    const r = await api('localRoster');
+    if (!r.ok) throw new Error(r.msg || 'Descarga fallida');
+    const map = Object.create(null);
+    const rows = r.items.map(([dni,nombre,alias,row,mask]) => {
+      if (dni && !map[dni]) map[dni] = [nombre || alias];
+      return {dni,nombre,alias,row,search:foldName(nombre+' '+alias),missing:rosterLabels.filter((_,j)=>mask & (1<<j))};
+    });
+    LIST = {at:Date.now(),map,rows};
+  } catch { rosterError = 'No se pudo actualizar. '; }
+  finally { updateRoster.disabled = false; renderListInfo(); }
 }
+updateRoster.onclick = refreshList;
 function renderListInfo() {
-  const n = Object.keys(LIST.map).length;
-  const el = document.getElementById('listInfo');
-  if (!n) { el.textContent = 'Lista local: sin descargar (se consultará al servidor)'; return; }
-  const min = Math.round((Date.now() - LIST.at) / 60000);
-  el.textContent = `Lista local: ${n} participantes · actualizada hace ${min} min`;
+  listInfo.textContent = updateRoster.disabled ? 'Actualizando padrón…' : rosterError + (LIST.at ? 'Padrón del celular: '+LIST.rows.length+' inscritos · '+new Date(LIST.at).toLocaleTimeString('es-PE') : 'Padrón pendiente de descarga');
 }
-setInterval(refreshList, 5 * 60 * 1000);   // cada 5 min (incluye inscritos en sitio de otras mesas)
 setInterval(renderListInfo, 60 * 1000);
 
 /* Keep-warm: si el celular está ocioso, un ping cada 60 s mantiene "tibio"
@@ -678,6 +682,7 @@ async function registerSubmit() {
     if (r.status === 'OK' || r.status === 'DUPLICATE') {
       beep(r.status === 'OK' ? 'ok' : 'dup');
       LIST.map[r.dni] = [r.nombre, r.institucion];
+      refreshList();
       showRegDone(r.status === 'OK' ? r.msg : 'Ya estaba inscrito', r.nombre, r.dni);
     } else presentResult(r, 'register');
   } catch (e) {
@@ -829,7 +834,7 @@ logoutBtn.onclick = async () => {
   try {
     const r = await api('logout');
     if (!r.ok) throw new Error(r.msg || r.status);
-    LIST = { at: 0, map: {} };
+    LIST = { at: 0, map: {}, rows: [] };
     document.getElementById('hist').replaceChildren();
     personMatches.replaceChildren();
     document.getElementById('dniLookupResult').replaceChildren();
@@ -900,7 +905,7 @@ function showParticipant(record, saved = false) {
     row.append(label, value);
     participantData.append(row);
   });
-  participantRecord.disabled = !record.dni;
+  participantRecord.disabled = !record.dni || LIST.rows.filter(p=>p.dni===record.dni).length>1;
   participantRecord.textContent = mode === 'kit' ? 'Confirmar entrega de kit'
     : withKit.checked ? 'Registrar asistencia y kit' : 'Registrar asistencia';
   participantRecord.onclick = () => {
@@ -916,19 +921,35 @@ function renderLookupResult(record) {
   const card = document.createElement('article');
   card.className = 'lookup-result';
   const description = document.createElement('p');
-  description.textContent = [record.nombre || record.fields[1]?.value, record.institucion, record.dni || 'Sin documento'].filter(Boolean).join(' · ');
+  description.textContent = [record.nombre || record.alias || record.fields?.[1]?.value, record.institucion, record.dni || 'Sin documento'].filter(Boolean).join(' · ');
   const action = document.createElement('button');
   action.type = 'button';
   action.className = 'ghost';
   action.textContent = 'Ver ficha de inscripción';
-  action.onclick = () => showParticipant(record);
+  async function details(edit) {
+    action.disabled = true;
+    try {
+      const full = await api('profileAt',{row:record.row,dni:record.dni,nombre:record.nombre,alias:record.alias});
+      if (!full.ok) throw new Error(full.msg);
+      if (edit) openProfile(full); else showParticipant(full);
+    } catch (err) { description.textContent = err.message; }
+    finally { action.disabled = false; }
+  }
+  action.onclick = () => details(false);
   card.append(description, action);
+  if (record.dni && LIST.rows.filter(p=>p.dni===record.dni).length===1) {
+    const confirm = document.createElement('button');
+    confirm.type='button'; confirm.className='primary';
+    confirm.textContent=mode==='kit'?'Confirmar entrega de kit':'Registrar asistencia';
+    confirm.onclick=()=>submitDni(record.dni,true);
+    card.append(confirm);
+  }
   if (record.missing.length) {
     const missing = document.createElement('button');
     missing.type = 'button';
     missing.className = 'ghost missing-data';
     missing.textContent = 'Faltan datos: ' + record.missing.join(', ');
-    missing.onclick = () => openProfile(record);
+    missing.onclick = () => details(true);
     card.append(missing);
   }
   return card;
@@ -995,42 +1016,19 @@ async function lookupDni() {
     return;
   }
   const dni = normDni(raw);
-  lookupButton.disabled = true;
-  lookupStatus.textContent = 'Buscando…';
-  try {
-    const record = await api('lookup', { dni });
-    if (!record.ok) throw new Error(record.msg || 'No se encontró el documento.');
-    lookupStatus.textContent = '';
-    if (active && !dniPanel.hidden && raw === (textMode ? textDni.value : dniBuf).trim()) {
-      document.getElementById('dniLookupResult').replaceChildren(renderLookupResult(record));
-    }
-  } catch (error) {
-    if (isNetworkError(error)) {
-      lookupStatus.textContent = 'Sin conexión para consultar el padrón.';
-      offlineDni = dni;
-      offlineButton.hidden = false;
-    } else {
-      lookupStatus.textContent = error.message;
-    }
-  } finally {
-    lookupButton.disabled = false;
-  }
+  const hits=LIST.rows.filter(p=>p.dni===dni);
+  document.getElementById('dniLookupResult').replaceChildren(...hits.map(renderLookupResult));
+  lookupStatus.textContent=hits.length>1?'Documento repetido. Verifique la ficha antes de registrar.':hits.length?'':'Sin coincidencias en el celular. Pulse Actualizar padrón.';
 }
-
-nameSearch.onsubmit = async event => {
+nameSearch.onsubmit = event => {
   event.preventDefault();
   if (!active) return;
-  const button = event.submitter;
-  button.disabled = true;
-  personMatches.textContent = 'Buscando…';
-  try {
-    const r = await api('search', { query: personQuery.value.trim() });
-    if (!r.ok) throw new Error(r.msg || r.status);
-    personMatches.replaceChildren();
-    if (!r.matches.length) personMatches.textContent = 'No se encontraron inscritos. Prueba con un solo apellido.';
-    r.matches.forEach(person => personMatches.append(renderLookupResult(person)));
-  } catch (error) { personMatches.textContent = error.message; }
-  finally { button.disabled = false; }
+  const words=foldName(personQuery.value).split(/\s+/).filter(Boolean);
+  if(words.join('').length<3) {personMatches.textContent='Escriba al menos tres letras.';return;}
+  const hits=LIST.rows.filter(p=>words.every(w=>p.search.includes(w)));
+  personMatches.replaceChildren(...hits.slice(0,20).map(renderLookupResult));
+  if (!hits.length) personMatches.textContent='Sin coincidencias en el celular. Pulse Actualizar padrón.';
+  if (hits.length>20) personMatches.append('Se muestran 20 resultados. Precise el apellido.');
 };
 
 setNet(navigator.onLine);
