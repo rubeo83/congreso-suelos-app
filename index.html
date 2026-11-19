@@ -59,6 +59,13 @@
   .hidden{display:none!important}
   .chk{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:15px}
   .chk input{width:22px;height:22px}
+.name-search-toggle { width:100%; min-height:48px; text-align:left; border:1px solid var(--brand); color:var(--brand); background:#fff; font-weight:700; }
+.name-search-toggle::after { content:'+'; float:right; }
+.name-search-toggle[aria-expanded="true"]::after { content:'−'; }
+#nameSearch { margin-top:12px; }
+#nameSearch button { width:100%; min-height:44px; margin-top:8px; }
+#personMatches:not(:empty) { margin-top:12px; }
+#personMatches button { display:block; width:100%; min-height:48px; margin:6px 0; text-align:left; overflow-wrap:anywhere; }
 </style>
 </head>
 <body>
@@ -109,12 +116,15 @@
     </div>
 
     <div class="card">
-      <form id="nameSearch">
-        <label for="personQuery">Buscar inscrito por nombre</label>
-        <input id="personQuery" autocomplete="off" minlength="3" required>
-        <button class="ghost">Buscar</button>
-      </form>
-      <div id="personMatches" aria-live="polite"></div>
+      <button id="nameSearchToggle" class="ghost name-search-toggle" type="button" aria-expanded="false" aria-controls="nameSearchPanel">Buscar por nombre</button>
+      <div id="nameSearchPanel" hidden>
+        <form id="nameSearch">
+          <label for="personQuery">Nombres o apellidos</label>
+          <input id="personQuery" type="search" autocomplete="off" minlength="3" required placeholder="Escribe al menos 3 letras" enterkeyhint="search">
+          <button class="primary" type="submit">Buscar inscritos</button>
+        </form>
+        <div id="personMatches" aria-live="polite"></div>
+      </div>
       <div id="dniDisplay" class="empty">Digite el DNI</div>
       <span id="preview"></span>
       <input id="textDni" class="hidden" autocomplete="off" autocapitalize="characters" placeholder="CE / PASAPORTE">
@@ -819,6 +829,14 @@ profileForm.onsubmit = async event => {
   finally { button.disabled = false; }
 };
 
+const searchToggle = document.getElementById('nameSearchToggle');
+const searchPanel = document.getElementById('nameSearchPanel');
+searchToggle.onclick = () => {
+  searchPanel.hidden = !searchPanel.hidden;
+  searchToggle.setAttribute('aria-expanded', String(!searchPanel.hidden));
+  if (!searchPanel.hidden) personQuery.focus();
+};
+
 nameSearch.onsubmit = async event => {
   event.preventDefault();
   if (!active) return;
@@ -826,13 +844,14 @@ nameSearch.onsubmit = async event => {
   button.disabled = true;
   personMatches.textContent = 'Buscando…';
   try {
-    const r = await api('search', { query: personQuery.value });
+    const r = await api('search', { query: personQuery.value.trim() });
     if (!r.ok) throw new Error(r.msg || r.status);
     personMatches.replaceChildren();
-    if (!r.matches.length) personMatches.textContent = 'No se encontraron inscritos';
+    if (!r.matches.length) personMatches.textContent = 'No se encontraron inscritos. Prueba con un solo apellido.';
     r.matches.forEach(person => {
       const option = document.createElement('button');
       option.type = 'button';
+      option.className = 'ghost';
       option.textContent = [person.nombre || person.fields[1].value, person.institucion, person.dni || 'Sin documento'].filter(Boolean).join(' · ');
       option.onclick = () => openProfile(person);
       personMatches.append(option);
