@@ -32,7 +32,11 @@
   /* Display + teclado */
   #dniDisplay{font-size:40px;font-weight:800;letter-spacing:4px;text-align:center;padding:12px 8px 4px;border:2px solid var(--brand);border-radius:12px;background:#fff;min-height:84px;font-variant-numeric:tabular-nums}
   #dniDisplay.empty{color:#c9bcae;font-weight:600;font-size:22px;letter-spacing:0;line-height:56px}
-  #preview{display:block;font-size:14px;letter-spacing:0;font-weight:600;color:var(--muted);min-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #preview { margin:6px 0; font-size:14px; }
+  #preview:empty { display:none; }
+  #preview div { display:grid; grid-template-columns:5.8em minmax(0,1fr); gap:8px; padding:2px 0; }
+  #preview dt { color:var(--muted); }
+  #preview dd { margin:0; font-weight:600; overflow-wrap:anywhere; }
   #textDni{font-size:28px;font-weight:800;text-align:center;letter-spacing:2px;text-transform:uppercase}
   .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
   .pad button{font-size:30px;font-weight:700;padding:15px 0;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
@@ -150,7 +154,7 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
       </div>
       <div id="dniSearchPanel">
       <div id="dniDisplay" class="empty">Digite el DNI</div>
-      <span id="preview"></span>
+      <dl id="preview" aria-live="polite"></dl>
       <input id="textDni" class="hidden" autocomplete="off" autocapitalize="characters" placeholder="CE / PASAPORTE">
       <div class="pad" id="pad">
         <button>1</button><button>2</button><button>3</button>
@@ -386,11 +390,12 @@ async function refreshList() {
     const r = await api('localRoster');
     if (!r.ok) throw new Error(r.msg || 'Descarga fallida');
     const map = Object.create(null);
-    const rows = r.items.map(([dni,nombre,alias,row,mask,categoria = '']) => {
+    const rows = r.items.map(([dni,nombre,alias,row,mask,categoria = '',institucion = '',correo = '',celular = '']) => {
       if (dni && !map[dni]) map[dni] = [nombre || alias];
-      return {dni,nombre,alias,row,categoria,search:foldName(nombre+' '+alias),missing:rosterLabels.filter((_,j)=>mask & (1<<j))};
+      return {dni,nombre,alias,row,categoria,institucion,correo,celular,search:foldName(nombre+' '+alias),missing:rosterLabels.filter((_,j)=>mask & (1<<j))};
     });
     LIST = {at:Date.now(),map,rows};
+    renderDocumentPreview(dniBuf);
   } catch { rosterError = 'No se pudo actualizar. '; }
   finally { updateRoster.disabled = false; renderListInfo(); }
 }
@@ -589,8 +594,26 @@ function renderDni() {
   d.textContent = dniBuf || 'Digite el DNI';
   d.classList.toggle('empty', !dniBuf);
   // Vista previa en vivo mientras digita (búsqueda local O(1) en el hash map)
-  const hit = dniBuf.length >= 8 ? LIST.map[normDni(dniBuf)] : null;
-  document.getElementById('preview').textContent = hit ? '→ ' + hit[0] : '';
+  renderDocumentPreview(dniBuf);
+}
+
+function renderDocumentPreview(raw) {
+  const preview = document.getElementById('preview');
+  preview.replaceChildren();
+  if (!/^\d{8,}$/.test(raw) || !LIST.rows) return;
+  const matches = LIST.rows.filter(person => person.dni === raw);
+  if (matches.length > 1) { preview.textContent = 'Documento repetido. Pulse Buscar inscrito para revisar las coincidencias.'; return; }
+  if (!matches.length) return;
+  const p = matches[0];
+  for (const [label,value] of [['Nombres',p.nombre || p.alias],['Categoría',p.categoria],['Institución',p.institucion],['Correo',p.correo],['DNI',p.dni],['Celular',p.celular]]) {
+    const row = document.createElement('div');
+    const title = document.createElement('dt');
+    const data = document.createElement('dd');
+    title.textContent = label;
+    data.textContent = value || 'Sin registrar';
+    row.append(title,data);
+    preview.append(row);
+  }
 }
 
 document.getElementById('pad').addEventListener('click', e => {
