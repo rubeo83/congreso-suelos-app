@@ -2,15 +2,12 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="theme-color" content="#3b2a1a">
 <title>Congreso de Suelos · Control</title>
 <style>
   :root{--bg:#f6f1ea;--ink:#2b2118;--muted:#7a6a5a;--brand:#5b3b22;--ok:#1f8a4c;--dup:#c98a00;--err:#c0392b;--card:#fff;--line:#e4d9cc;--pend:#2c3e50}
   *{box-sizing:border-box}
-  html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior:none}
-  button,select,input,label,.pad,.pad button{touch-action:manipulation}
-  .pad button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);-webkit-tap-highlight-color:transparent;user-select:none}
   header{background:var(--brand);color:#fff;padding:8px 12px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:5}
   header h1{font-size:15px;margin:0;flex:1;line-height:1.2}
@@ -31,30 +28,11 @@
   button.primary{width:100%;padding:14px;font-size:16px;font-weight:700;border:0;border-radius:10px;background:var(--brand);color:#fff}
   button.ghost{padding:10px 14px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:14px}
   .modeTitle{font-size:20px;font-weight:800;margin:0}
-  .listInfo{font-size:12px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:8px}
-  .listInfo span{flex:1}
-  .chip{display:inline-block;border-radius:12px;padding:3px 10px;font-size:13px;font-weight:700;background:#efe6da;color:var(--brand);white-space:nowrap}
-  .chip.open{background:#d9f2e3;color:#1f6b3f}.chip.closed{background:#f9dcd8;color:#a5281b}
-  #testBanner{background:repeating-linear-gradient(45deg,#f1c40f,#f1c40f 12px,#f5d547 12px,#f5d547 24px);color:#3b2a00;text-align:center;font-weight:800;font-size:13px;padding:6px}
-  #overlay .cat{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:14px;background:rgba(255,255,255,.22);font-size:15px;font-weight:700;letter-spacing:.3px}
-  #overlay .cat.vip{background:#f1c40f;color:#3b2a00}
-  #preview .pcat{display:block;font-size:15px;font-weight:700;color:var(--brand);margin-top:2px}
-  .logos{display:flex;gap:6px;align-items:center}
-  .logos img{height:30px;max-width:86px;object-fit:contain;background:#fff;border-radius:6px;padding:2px 4px}
-  #byline{position:fixed;right:10px;bottom:6px;font-size:11px;color:var(--muted);opacity:.85;z-index:4;pointer-events:none;font-style:italic}
-  main{padding-bottom:28px}
-  #blocked{position:fixed;inset:0;background:#2b2118;color:#fff;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px}
-  #blocked b{font-size:24px;margin-bottom:12px}
-  #blocked small{opacity:.7;margin-top:14px;font-family:monospace}
-  #view-login .card{margin-top:18px}
-  #view-login .logosBig{display:flex;justify-content:center;gap:14px;margin:6px 0 12px}
-  #view-login .logosBig img{height:56px;object-fit:contain}
-  #loginClave{letter-spacing:2px;text-transform:uppercase}
-  .err{color:var(--err);font-weight:700}
+  .listInfo{font-size:12px;color:var(--muted);margin-top:4px}
   /* Display + teclado */
   #dniDisplay{font-size:40px;font-weight:800;letter-spacing:4px;text-align:center;padding:12px 8px 4px;border:2px solid var(--brand);border-radius:12px;background:#fff;min-height:84px;font-variant-numeric:tabular-nums}
   #dniDisplay.empty{color:#c9bcae;font-weight:600;font-size:22px;letter-spacing:0;line-height:56px}
-  #preview{display:block;font-size:22px;letter-spacing:0;font-weight:800;color:var(--ink);min-height:30px;line-height:1.2;margin-top:8px;text-align:center;white-space:normal;word-break:break-word}
+  #preview{display:block;font-size:14px;letter-spacing:0;font-weight:600;color:var(--muted);min-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #textDni{font-size:28px;font-weight:800;text-align:center;letter-spacing:2px;text-transform:uppercase}
   .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
   .pad button{font-size:30px;font-weight:700;padding:15px 0;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
@@ -87,71 +65,56 @@
 
 <header>
   <span class="net" id="net"></span>
-  <span class="logos">
-    <img src="logo-inia.png" alt="INIA" onerror="this.remove()">
-    <img src="logo-congreso.png" alt="Congreso" onerror="this.remove()">
-  </span>
   <h1>Congreso de Suelos <small id="hdrStaff"></small></h1>
   <span class="pill" id="latBadge" title="Latencia promedio de los últimos registros">⏱ –</span>
   <span class="pill" id="queueBadge"></span>
-  <button class="ghost" style="padding:6px 10px" id="sessBtn" onclick="show('session')">👤</button>
+  <button class="ghost" style="padding:6px 10px" onclick="show('config')">⚙</button>
 </header>
 
-<div id="testBanner" class="hidden">⚠ MODO PRUEBA · los registros van al Día 1 · limpiar antes del 18-nov</div>
 <nav id="tabs">
   <button data-mode="checkin" class="active">Asistencia</button>
   <button data-mode="kit">Kit</button>
-  <button data-mode="register" class="hidden" id="tabRegister">Inscribir</button>
+  <button data-mode="register">Inscribir</button>
   <button data-mode="stats">Resumen</button>
 </nav>
 
 <main>
-  <!-- ACCESO (nombre + puerta + clave; el servidor valida la clave y asigna el rol) -->
-  <section id="view-login" class="hidden">
+  <!-- CONFIG -->
+  <section id="view-config" class="hidden">
     <div class="card">
-      <div class="logosBig"><img src="logo-inia.png" alt="INIA" onerror="this.remove()"><img src="logo-congreso.png" alt="Congreso" onerror="this.remove()"></div>
-      <p class="modeTitle" style="text-align:center">Acceso de registradores</p>
-      <label>Nombre y apellido *</label>
-      <input id="loginNombre" autocomplete="name" placeholder="Ej. Ana Torres">
-      <label>Puerta asignada *</label>
-      <select id="loginPuerta">
-        <option value="">— Seleccione —</option>
-        <option value="1">Puerta 1</option><option value="2">Puerta 2</option><option value="3">Puerta 3</option>
-        <option value="4">Puerta 4</option><option value="5">Puerta 5</option>
-        <option value="6">Puerta 6</option><option value="7">Puerta 7</option><option value="8">Puerta 8</option>
-        <option value="9">Puerta 9</option><option value="10">Puerta 10</option><option value="0">Mesa de inscripción</option>
-      </select>
-      <label>Clave de acceso *</label>
-      <input id="loginClave" type="password" autocomplete="off" autocapitalize="characters" placeholder="Clave">
+      <p class="modeTitle">Configuración</p>
+      <label>URL de la API (Apps Script /exec)</label>
+      <input id="cfgApi" placeholder="https://script.google.com/macros/s/.../exec">
+      <label>Clave</label>
+      <input id="cfgKey" type="password">
+      <label>Puerta asignada</label>
+      <select id="cfgPuerta"></select>
+      <label>Tu nombre</label>
+      <input id="cfgStaff" placeholder="Ej. Ana Torres">
       <br><br>
-      <button class="primary" id="loginBtn" onclick="doLogin()">Ingresar</button>
-      <p id="loginMsg" style="font-size:14px"></p>
-    </div>
-  </section>
-
-  <!-- SESIÓN -->
-  <section id="view-session" class="hidden">
-    <div class="card">
-      <p class="modeTitle">Sesión</p>
-      <p id="sessInfo" style="font-size:15px;line-height:1.6"></p>
-      <button class="primary" onclick="doLogout()">Cerrar sesión</button>
-      <br><br>
-      <button class="ghost" style="width:100%" onclick="document.querySelector('#tabs button[data-mode=checkin]').click()">Volver</button>
+      <button class="primary" onclick="saveConfig()">Guardar y probar conexión</button>
+      <button class="ghost" id="logoutBtn" type="button">Cerrar sesión y liberar puesto</button>
+      <p id="cfgMsg" style="font-size:14px"></p>
     </div>
   </section>
 
   <!-- INGRESO POR DNI (checkin / kit) -->
   <section id="view-scan" class="hidden">
     <div class="card">
-      <div class="row" style="flex-wrap:wrap">
+      <div class="row">
         <p class="modeTitle" id="scanTitle" style="flex:1">Asistencia</p>
-        <span class="chip" id="dayChip">Día –</span>
-        <span class="chip" id="winChip">⏰ –</span>
+        <span id="sessionLabel"></span>
       </div>
-      <div class="listInfo"><span id="listInfo">Lista local: cargando…</span><button class="ghost" id="refreshBtn" style="padding:6px 10px">↻ Actualizar</button></div>
+      <div class="listInfo" id="listInfo">Lista local: cargando…</div>
     </div>
 
     <div class="card">
+      <form id="nameSearch">
+        <label for="personQuery">Buscar inscrito por nombre</label>
+        <input id="personQuery" autocomplete="off" minlength="3" required>
+        <button class="ghost">Buscar</button>
+      </form>
+      <div id="personMatches" aria-live="polite"></div>
       <div id="dniDisplay" class="empty">Digite el DNI</div>
       <span id="preview"></span>
       <input id="textDni" class="hidden" autocomplete="off" autocapitalize="characters" placeholder="CE / PASAPORTE">
@@ -162,7 +125,7 @@
         <button class="fn" data-k="del">⌫</button><button>0</button><button class="ok" data-k="ok">OK</button>
       </div>
       <div class="opts">
-        <span style="flex:1">Verifique el nombre y presione <b>OK</b></span>
+        <label><input type="checkbox" id="autoSend" checked> Enviar al completar 8 dígitos</label>
         <button class="ghost" id="abcBtn" style="padding:6px 10px">ABC · CE/Pasaporte</button>
       </div>
       <div class="opts" id="kitOpt">
@@ -173,8 +136,21 @@
     <div class="card">
       <b style="font-size:14px">Últimos registros</b>
       <ul class="hist" id="hist"></ul>
+      <p id="queueReview" role="status"></p>
     </div>
   </section>
+
+  <dialog id="profileDialog">
+    <form id="profileForm">
+      <h3 id="profileTitle">Datos del inscrito</h3>
+      <p id="profileMissing"></p>
+      <div id="profileFields"></div>
+      <p id="profileStatus" role="status"></p>
+      <button class="primary">Guardar datos</button>
+      <button id="profileContinue" type="button">Registrar con este documento</button>
+      <button id="profileClose" type="button">Cerrar</button>
+    </form>
+  </dialog>
 
   <!-- REGISTER -->
   <section id="view-register" class="hidden">
@@ -184,9 +160,6 @@
       <input id="rDni" autocomplete="off" inputmode="numeric">
       <label>Nombres y apellidos *</label>
       <input id="rNombre" autocomplete="off" style="text-transform:uppercase">
-      <label>Categoría *</label>
-      <input id="rCat" list="catList" autocomplete="off" style="text-transform:uppercase" placeholder="Elija de la lista o escriba">
-      <datalist id="catList"></datalist>
       <label>Institución</label>
       <input id="rInst" autocomplete="off">
       <label>Correo</label>
@@ -218,21 +191,15 @@
   </section>
 </main>
 
-<div id="byline">By: Ruben Arana</div>
-<div id="blocked"><b>⛔ Dispositivo no autorizado</b><span id="blockedMsg"></span><small id="blockedId"></small></div>
 <div id="overlay" onclick="hideOverlay()">
   <div class="ms" id="ovMs"></div>
   <div class="big" id="ovBig"></div>
   <div class="name" id="ovName"></div>
   <div class="sub" id="ovSub"></div>
-  <div class="cat hidden" id="ovCat"></div>
   <button id="undoBtn">↶ Deshacer (DNI mal digitado)</button>
   <div class="tap">Toca para continuar</div>
 </div>
 
-<!-- Config inyectada por doGet() cuando la app se sirve desde Apps Script (HtmlService).
-     Si el archivo se abre fuera de Apps Script, esto no es JSON válido y se ignora. -->
-<script id="boot" type="application/json"><?!= boot ?></script>
 <script>
 /* =====================================================================
    ESTADO Y CONFIG
@@ -242,78 +209,29 @@ const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
-let cfg = store.get(LS.cfg, { api: '', key: '', staff: '', nombre: '', puerta: '1' });
+let cfg = { api: '', key: '', nombre: store.get(LS.cfg, {}).nombre || '', puerta: 'P1' };
+const slots = [...Array.from({length: 15}, (_, i) => 'P' + (i + 1)), ...Array.from({length: 5}, (_, i) => 'M' + (i + 1))];
+slots.forEach(slot => cfgPuerta.add(new Option((slot[0] === 'P' ? 'Puerta ' : 'Mesa ') + slot.slice(1), slot)));
+let device = store.get('cs_device', '') || (crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''));
+store.set('cs_device', device);
+try { localStorage.removeItem(LS.list); } catch {}
+store.set(LS.cfg, { nombre: cfg.nombre });
+let active = false;
+let operatorRole = '';
+let inFlight = 0;
+let profileRecord = null;
+
 // staff que viaja al backend: "P3 · Ana Torres" (permite estadística por puerta)
-const staffId = c => (c.puerta && c.puerta !== '0' ? 'P' + c.puerta + ' · ' : 'MESA · ') + (c.nombre || '');
+const staffId = c => c.puerta + ' · ' + (c.nombre || '');
 let mode = 'checkin';
 let busy = false;
 let dniBuf = '';          // buffer del teclado numérico
 let textMode = false;     // true = CE/pasaporte con teclado nativo
 let lastOk = null;        // último registro exitoso (para Deshacer)
-let SRV = { day: null, test: false, abierto: true, horario: null }; // estado que decide el servidor
 let lastReqAt = 0;        // para el keep-warm
 
-// Modo 1 (recomendado): servida por Apps Script → transporte google.script.run, config desde doGet()
-const GAS = !!(window.google && google.script && google.script.run);
-const BOOT = (() => { try { return JSON.parse(document.getElementById('boot').textContent); } catch { return null; } })();
-if (GAS && BOOT) {
-  cfg.api = 'gas';
-  cfg.key = BOOT.key;
-  cfg.puerta = BOOT.puerta || cfg.puerta || '1';
-  cfg.nombre = BOOT.nombre || cfg.nombre || '';
-  cfg.staff = staffId(cfg);
-  store.set(LS.cfg, cfg);
-}
-
-// Modo 2 (GitHub Pages): la clave NUNCA viaja en el link; se pide en la pantalla de acceso.
 const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbxtkIigC-yUDGwlZHg2-7eujK0bSrcGe306ywEGQg0aXH6esIgUuxCDsdarOW2-SeTf/exec';
-const PREFILL = {};
-(function readUrlParams() {
-  const p = new URLSearchParams(location.search);
-  if (!GAS) cfg.api = p.get('api') || cfg.api || DEFAULT_API;
-  if (p.get('puerta')) PREFILL.puerta = p.get('puerta');
-  if (p.get('nombre')) PREFILL.nombre = p.get('nombre').replace(/[-_]/g, ' ');
-  if (p.get('key')) history.replaceState(null, '', location.pathname + '?' + [...p].filter(([k]) => k !== 'key').map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&'));
-})();
-
-/* =====================================================================
-   PERSISTENCIA ROBUSTA: localStorage + IndexedDB (espejo) + storage.persist()
-   ===================================================================== */
-const IDB = (() => {
-  let dbp;
-  const open = () => dbp || (dbp = new Promise((res, rej) => {
-    const r = indexedDB.open('cs_db', 1);
-    r.onupgradeneeded = () => r.result.createObjectStore('kv');
-    r.onsuccess = () => res(r.result);
-    r.onerror = () => rej(r.error);
-  }));
-  return {
-    async get(k) {
-      try {
-        const db = await open();
-        return await new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); });
-      } catch { return undefined; }
-    },
-    async set(k, v) {
-      try {
-        const db = await open();
-        await new Promise(res => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = res; });
-      } catch {}
-    }
-  };
-})();
-/** ID único del celular (cuenta para el límite de dispositivos). Se recupera de IndexedDB si
-    localStorage se borró, para no consumir un cupo nuevo. Toda llamada a la API lo espera. */
-const deviceReady = (async () => {
-  let id = store.get('cs_device', null) || await IDB.get('device');
-  if (!id) {
-    try { id = crypto.randomUUID(); } catch { id = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12); }
-  }
-  store.set('cs_device', id); IDB.set('device', id);
-  return id;
-})();
-// Pide al navegador no desalojar los datos de este sitio
-try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
+const GAS = !!(window.google && google.script && google.script.run);
 
 /** Misma normalización que el backend (normDni_): clave de búsqueda local idéntica. */
 function normDni(v) {
@@ -326,9 +244,9 @@ function normDni(v) {
    API CLIENT (+ medición de latencia)
    ===================================================================== */
 /** RPC sobre google.script.run, envuelto en Promise y con timeout de 20 s. */
-function gasCall(req, timeoutMs = 20000) {
+function gasCall(req) {
   return new Promise((resolve, reject) => {
-    const to = setTimeout(() => { const e = new Error('timeout'); e.name = 'AbortError'; reject(e); }, timeoutMs);
+    const to = setTimeout(() => { const e = new Error('timeout'); e.name = 'AbortError'; reject(e); }, 20000);
     google.script.run
       .withSuccessHandler(r => { clearTimeout(to); resolve(r); })
       .withFailureHandler(err => {
@@ -342,14 +260,17 @@ function gasCall(req, timeoutMs = 20000) {
   });
 }
 
-async function api(action, payload = {}, timeoutMs = 20000) {
+async function api(action, payload = {}) {
   lastReqAt = Date.now();
-  const device = await deviceReady;
-  const ua = navigator.userAgent;
+  inFlight++;
+  const request = { ...payload, action, key: cfg.key, staff: cfg.staff, device, slot: cfg.puerta };
+  try { return await transport(request); } finally { inFlight--; }
+}
+
+async function transport(request) {
   if (GAS) {
     try {
-      const r = await gasCall({ action, key: cfg.key, staff: cfg.staff, device, ua, ...payload }, timeoutMs);
-      checkBlocked(r);
+      const r = await gasCall(request);
       setNet(true);
       return r;
     } catch (e) {
@@ -358,19 +279,17 @@ async function api(action, payload = {}, timeoutMs = 20000) {
     }
   }
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  const t = setTimeout(() => ctrl.abort(), 20000);
   try {
     const res = await fetch(cfg.api, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // "simple request": evita preflight CORS
-      body: JSON.stringify({ action, key: cfg.key, staff: cfg.staff, device, ua, ...payload }),
+      body: JSON.stringify(request),
       signal: ctrl.signal
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     setNet(true);
-    const r = await res.json();
-    checkBlocked(r);
-    return r;
+    return await res.json();
   } catch (e) {
     if (isNetworkError(e)) setNet(false);
     throw e;
@@ -396,23 +315,16 @@ const pct = (arr, p) => { if (!arr.length) return '–'; const s = [...arr].sort
    El servidor sigue siendo la fuente de verdad (duplicados entre puertas).
    ===================================================================== */
 let LIST = { at: 0, map: {} };
-(function loadListFromStorage() {
-  const s = store.get(LS.list, null);
-  if (s && s.map) LIST = s;
-})();
-async function refreshList(manual) {
-  if (!cfg.api || !cfg.key) return;
-  if (manual) { refreshBtn.disabled = true; refreshBtn.textContent = '↻ …'; }
+async function refreshList() {
+  if (!active) return;
   try {
     const r = await api('list');
     if (!r.ok) return;
     const map = {};
-    r.items.forEach(([d, n, i, c]) => { map[d] = [n, i, c || '']; });
+    r.items.forEach(([d, n, i]) => { map[d] = [n, i]; });
     LIST = { at: Date.now(), map };
-    saveList();
-    if (manual) { beep('ok'); }
-  } catch { if (manual) alertBox('Sin conexión: no se pudo actualizar la lista'); }
-  if (manual) { refreshBtn.disabled = false; refreshBtn.textContent = '↻ Actualizar'; }
+
+  } catch {}
   renderListInfo();
 }
 function renderListInfo() {
@@ -428,99 +340,74 @@ setInterval(renderListInfo, 60 * 1000);
 /* Keep-warm: si el celular está ocioso, un ping cada 60 s mantiene "tibio"
    el contenedor de Apps Script y la conexión TLS abierta → evita arranques en frío. */
 setInterval(async () => {
-  if (!cfg.api || !cfg.key || Date.now() - lastReqAt < 45000 || busy) return;
+  if (!active || Date.now() - lastReqAt < 45000 || busy) return;
   const t0 = performance.now();
-  try { const r = await api('ping'); recordLatency(Math.round(performance.now() - t0), r.ms); applyPing(r); } catch {}
+  try { const r = await api('ping');
+    if (r.ok) { recordLatency(Math.round(performance.now() - t0), r.ms); updateSessionLabel(r); } } catch {}
 }, 60000);
 
 /* =====================================================================
    COLA OFFLINE
    ===================================================================== */
-/* La cola es el ÚNICO dato que vive solo en el celular: se escribe en localStorage
-   e IndexedDB a la vez, y un item solo se elimina cuando el servidor respondió. */
-function saveList() { store.set(LS.list, LIST); IDB.set('list', LIST); }
 function queue() { return store.get(LS.queue, []); }
-function saveQueue(q) { store.set(LS.queue, q); IDB.set('queue', q); renderQueue(); }
+
 function enqueue(item) {
   const q = queue();
-  q.push({ ...item, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), ts: Date.now() });
-  saveQueue(q);
+  q.push({ ...item, slot: cfg.puerta, staff: cfg.staff });
+  store.set(LS.queue, q);
+  if (queue().length !== q.length) throw new Error('No se pudo guardar el registro en este navegador');
+  renderQueue();
 }
-/** Al iniciar: si localStorage perdió datos, se recuperan desde IndexedDB (merge por id). */
-async function recoverStorage() {
-  const iq = await IDB.get('queue');
-  if (Array.isArray(iq) && iq.length) {
-    const q = queue(), ids = new Set(q.map(x => x.id));
-    const missing = iq.filter(x => !ids.has(x.id));
-    if (missing.length) saveQueue([...missing, ...q].sort((a, b) => a.ts - b.ts));
-  }
-  if (!Object.keys(LIST.map).length) {
-    const il = await IDB.get('list');
-    if (il && il.map && Object.keys(il.map).length) { LIST = il; store.set(LS.list, LIST); }
-  }
-  renderQueue(); renderListInfo();
-}
-// Aviso si se intenta cerrar la app con registros pendientes de sincronizar
-window.addEventListener('beforeunload', e => { if (queue().length) { e.preventDefault(); e.returnValue = ''; } });
+
 function renderQueue() {
-  const n = queue().length, b = document.getElementById('queueBadge');
-  b.style.display = n ? 'inline' : 'none';
-  b.textContent = n + ' pend.';
+  const q = queue(), pending = q.filter(it => !it.rejected).length;
+  const b = document.getElementById('queueBadge');
+  b.style.display = q.length ? 'inline' : 'none';
+  b.textContent = pending + ' pend. / ' + (q.length - pending) + ' por revisar';
+  const review = document.getElementById('queueReview');
+  review.replaceChildren();
+  q.filter(it => it.rejected || !it.slot || !it.payload?.ts).forEach(it => {
+    const row = document.createElement('div');
+    row.textContent = it.action + ' · ' + (it.payload?.dni || 'sin documento') + ' · ' +
+      (it.rejected || 'Registro anterior: verifique manualmente su hora y puesto');
+    review.append(row);
+  });
 }
+
 let flushing = false;
+let retryAfter = 0;
+let retryDelay = 10000;
 async function flushQueue() {
-  if (flushing || !cfg.api || !cfg.key) return;
+  if (flushing || !active || Date.now() < retryAfter) return;
   flushing = true;
   try {
-    let q = queue();
-    while (q.length) {
-      const it = q[0];
+    for (;;) {
+      const q = queue();
+      const i = q.findIndex(it => !it.rejected && it.slot === cfg.puerta && it.staff === cfg.staff && it.payload?.ts);
+      if (i < 0) break;
+      const it = q[i];
       let r;
-      try {
-        r = await api(it.action, it.payload);
-      } catch (e) {
-        break; // cualquier falla (red, timeout, servidor caído): el item SE QUEDA y se reintenta luego
+      try { r = await api(it.action, it.payload); }
+      catch { r = { status: 'BUSY' }; }
+      if (['BUSY', 'ERROR', 'DEVICE_REQUIRED', 'DOOR_TAKEN', 'DEVICE_LIMIT', 'UNAUTHORIZED'].includes(r.status)) {
+        retryAfter = Date.now() + retryDelay;
+        retryDelay = Math.min(retryDelay * 2, 120000);
+        break;
       }
-      if (!r || ['BUSY', 'ERROR', 'DEVICE_LIMIT', 'DEVICE_REQUIRED', 'UNAUTHORIZED', 'DOOR_TAKEN'].includes(r.status)) break; // no procesado: reintentar
+      retryDelay = 10000;
       addHistory(r, it.action + ' (sincronizado)');
-      // Solo ahora (respuesta confirmada del servidor) se elimina de la cola. Idempotente en el backend.
-      q = queue().filter(x => (x.id || x.ts) !== (it.id || it.ts));
-      saveQueue(q);
+      const latest = queue();
+      if (r.ok && ['OK', 'DUPLICATE'].includes(r.status)) latest.splice(i, 1);
+      else latest[i].rejected = r.msg || r.status;
+      store.set(LS.queue, latest);
+      if (JSON.stringify(queue()) !== JSON.stringify(latest)) break;
     }
   } finally { flushing = false; renderQueue(); }
 }
 setInterval(flushQueue, 10000);
-window.addEventListener('online', () => { setNet(true); flushQueue(); });
+window.addEventListener('online', () => { setNet(true); retryAfter = 0; flushQueue(); });
 window.addEventListener('offline', () => setNet(false));
 function setNet(on) { document.getElementById('net').classList.toggle('off', !on); }
-
-/** Si el servidor rechaza este celular (límite de dispositivos), se bloquea la app. */
-function checkBlocked(r) {
-  if (r && r.status === 'UNAUTHORIZED' && cfg.key) { forceLogin('La clave ya no es válida. Ingrese la clave vigente.'); return; }
-  if (r && r.status === 'DOOR_TAKEN' && cfg.key) { forceLogin(r.msg); return; }
-  if (!r || (r.status !== 'DEVICE_LIMIT' && r.status !== 'DEVICE_REQUIRED')) return;
-  blockedMsg.textContent = r.msg || '';
-  deviceReady.then(id => { blockedId.textContent = 'ID: ' + id; });
-  document.getElementById('blocked').style.display = 'flex';
-}
-
-/** El servidor decide el día y si la ventana de atención está abierta. */
-function applyPing(r) {
-  if (!r || !r.ok) return;
-  SRV = { day: r.day, test: !!r.test, abierto: !!r.abierto, disp: r.dispositivos || SRV.disp };
-  if (r.role) setRole(r.role);
-  dayChip.textContent = r.day ? (r.test ? 'PRUEBA · Día 1' : 'Día ' + r.day + (r.sesion ? ' · ' + r.sesion : '')) : 'Evento cerrado';
-  const h = r.horarioTxt || '';
-  winChip.textContent = r.test ? '⏰ libre en prueba' : (r.abierto ? '🟢 Abierto · ' : '🔴 Cerrado · ') + h;
-  winChip.className = 'chip ' + (r.test ? '' : r.abierto ? 'open' : 'closed');
-  testBanner.classList.toggle('hidden', !r.test);
-}
-const VIP = /COMIT|PONENTE|INVITAD|AUTORIDAD|EXPOSITOR|ORGANIZ/i;
-function setCat(cat) {
-  ovCat.textContent = cat || '';
-  ovCat.classList.toggle('hidden', !cat);
-  ovCat.classList.toggle('vip', !!cat && VIP.test(cat));
-}
 
 /* =====================================================================
    FEEDBACK (sonido, vibración, overlay)
@@ -545,7 +432,6 @@ function showOverlay(color, big, name, sub, ms = 2200, undo = false, msText = ''
   o.style.background = color;
   ovBig.textContent = big; ovName.textContent = name || ''; ovSub.textContent = sub || '';
   ovMs.textContent = msText;
-  setCat('');
   undoBtn.style.display = undo ? 'inline-block' : 'none';
   o.style.display = 'flex';
   clearTimeout(ovTimer);
@@ -561,34 +447,26 @@ function presentResult(r, action, payload) {
   // Modo combinado Ingreso + Kit
   if (action === 'checkin' && r.kitStatus && (r.status === 'OK' || r.status === 'DUPLICATE')) {
     const inOk = r.status === 'OK', kitOk = r.kitStatus === 'OK';
-    lastOk = (inOk || kitOk) ? { dni: r.dni, day: r.day, col: r.col, undoIn: inOk, undoKit: kitOk } : null;
-    const big = (inOk ? '✔ INGRESO D' + r.day + (r.sesion ? ' · ' + r.sesion : '') : '⚠ YA INGRESÓ') + '\n' + (kitOk ? '🎁 ENTREGAR KIT' : '✖ KIT YA ENTREGADO');
+    lastOk = (inOk || kitOk) ? { dni: r.dni, day: r.day, col: r.col, undoIn: r.undoAt, undoKit: r.kitUndoAt } : null;
+    const big = (inOk ? '✔ INGRESO D' + r.day : '⚠ YA INGRESÓ') + '\n' + (kitOk ? '🎁 ENTREGAR KIT' : '✖ KIT YA ENTREGADO');
     const sub = !kitOk ? 'Kit: ' + (r.kitAt || '') + (r.kitBy ? ' · ' + r.kitBy : '') : (r.institucion || '');
     const color = kitOk ? (inOk ? C.ok : C.dup) : (inOk ? C.dup : C.err);
     beep(inOk && kitOk ? 'ok' : 'dup');
     showOverlay(color, big, r.nombre, sub, 3500, !!lastOk, msT);
-    setCat(r.categoria);
-    addHistory({ ...r, status: inOk && kitOk ? 'OK' : 'DUPLICATE' }, 'ingreso+kit');
+    addHistory({ ...r, status: inOk && kitOk ? 'OK' : 'DUPLICATE' }, 'ingreso+kit', lastOk);
     return;
   }
   if (r.status === 'OK') {
     beep('ok');
-    lastOk = { dni: r.dni, day: r.day, col: r.col, undoIn: action === 'checkin', undoKit: action === 'kit' };
-    const big = action === 'kit' ? '🎁 ENTREGAR KIT' : '✔ ASISTENCIA D' + r.day + (r.sesion ? ' · ' + r.sesion : '');
+    lastOk = { dni: r.dni, day: r.day, col: r.col, undoIn: action === 'checkin' && r.undoAt, undoKit: action === 'kit' && r.undoAt };
+    const big = action === 'kit' ? '🎁 ENTREGAR KIT' : '✔ ASISTENCIA D' + r.day;
     const extra = action === 'checkin' && r.day === 1 && !r.kit ? 'Pendiente: recoger kit' : (r.institucion || '');
     // Más tiempo en pantalla para que el staff confirme el nombre con la persona
     showOverlay(C.ok, big, r.nombre, extra, 3500, true, msT);
-    setCat(r.categoria);
   } else if (r.status === 'DUPLICATE') {
     beep('dup');
     showOverlay(action === 'kit' ? C.err : C.dup, action === 'kit' ? '✖ YA RECIBIÓ KIT' : '⚠ YA REGISTRADO',
       r.nombre, (r.msg || '') + (r.at ? ' · ' + r.at : ''), 3000, false, msT);
-    setCat(r.categoria);
-  } else if (r.status === 'CLOSED') {
-    beep('err');
-    const loc = LIST.map[r.dni];
-    showOverlay(C.err, '⛔ FUERA DE HORARIO', loc ? loc[0] : (r.dni ? 'DNI ' + r.dni : ''), r.msg || '', 3500, false, msT);
-    api('ping').then(applyPing).catch(() => {});
   } else if (r.status === 'NOT_FOUND') {
     beep('err');
     showOverlay(C.err, '✖ NO INSCRITO', 'DNI ' + (r.dni || ''), 'Verifique el número o derive a inscripción', 3500, false, msT);
@@ -596,31 +474,43 @@ function presentResult(r, action, payload) {
     beep('err');
     showOverlay(C.err, '✖ ERROR', '', r.msg || r.status, 3500, false, msT);
   }
-  addHistory(r, action);
+  addHistory(r, action, r.status === 'OK' ? lastOk : null);
 }
 
 undoBtn.addEventListener('click', async ev => {
   ev.stopPropagation();
   if (!lastOk) return;
-  const p = lastOk; lastOk = null;
+  await undoRecord(lastOk);
+});
+
+async function undoRecord(p) {
+  if (!active || !p) return;
+  lastOk = null;
   showOverlay('#555', '…', 'Anulando', 'DNI ' + p.dni, 20000);
   try {
     let r;
-    if (p.undoIn) r = await api('undo', { dni: p.dni, what: 'checkin', day: p.day, col: p.col });
-    if (p.undoKit && (!r || r.ok)) r = await api('undo', { dni: p.dni, what: 'kit' });
+    if (p.undoIn) r = await api('undo', { dni: p.dni, what: 'checkin', day: p.day, col: p.col, expectedAt: p.undoIn });
+    if (p.undoKit && (!r || r.ok)) r = await api('undo', { dni: p.dni, what: 'kit', expectedAt: p.undoKit });
     if (r.ok) { beep('dup'); showOverlay('#34495e', '↶ ANULADO', r.nombre, 'Vuelva a digitar el DNI correcto', 2500); addHistory({ ...r, status: 'ANULADO' }, 'undo'); }
     else presentResult(r, 'undo');
   } catch (e) { presentResult({ status: 'ERROR', msg: 'Sin conexión: no se pudo anular' }, 'undo'); }
-});
+}
 
-function addHistory(r, action) {
-  const color = { OK: 'var(--ok)', DUPLICATE: 'var(--dup)', NOT_FOUND: 'var(--err)', QUEUED: '#e67e22', ANULADO: '#34495e', CLOSED: '#7f1d1d' }[r.status] || 'var(--err)';
+function addHistory(r, action, undo) {
+  const color = { OK: 'var(--ok)', DUPLICATE: 'var(--dup)', NOT_FOUND: 'var(--err)', QUEUED: '#e67e22', ANULADO: '#34495e' }[r.status] || 'var(--err)';
   const li = document.createElement('li');
   const time = new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
   li.innerHTML = `<span class="dot" style="background:${color}"></span><span><b></b><br><small></small></span>`;
   li.querySelector('b').textContent = r.nombre || ('DNI ' + (r.dni || ''));
   li.querySelector('small').textContent = `${time} · ${action} · ${r.status}${r._rtt != null ? ' · ' + r._rtt + ' ms' : ''}`;
   const h = document.getElementById('hist');
+  if (undo && (undo.undoIn || undo.undoKit)) {
+    const button = document.createElement('button');
+    button.textContent = 'Deshacer';
+    button.onclick = async () => { button.disabled = true; await undoRecord(undo); };
+    li.append(button);
+    setTimeout(() => button.remove(), Math.max(0, Math.max(undo.undoIn || 0, undo.undoKit || 0) + 600000 - Date.now()));
+  }
   h.prepend(li);
   while (h.children.length > 12) h.lastChild.remove();
 }
@@ -628,51 +518,35 @@ function addHistory(r, action) {
 /* =====================================================================
    INGRESO DE DNI
    ===================================================================== */
-// El día ya no se elige: lo decide el servidor según la fecha (y el MODO PRUEBA antes del evento).
-
 function renderDni() {
   const d = document.getElementById('dniDisplay');
   d.textContent = dniBuf || 'Digite el DNI';
   d.classList.toggle('empty', !dniBuf);
   // Vista previa en vivo mientras digita (búsqueda local O(1) en el hash map)
   const hit = dniBuf.length >= 8 ? LIST.map[normDni(dniBuf)] : null;
-  const pv = document.getElementById('preview');
-  pv.textContent = hit ? '→ ' + hit[0] : '';
-  if (hit && hit[2]) { const c = document.createElement('span'); c.className = 'pcat'; c.textContent = hit[2]; pv.appendChild(c); }
+  document.getElementById('preview').textContent = hit ? '→ ' + hit[0] : '';
 }
 
-function padPress(e) {
+document.getElementById('pad').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b || busy) return;
-  if (e.cancelable) e.preventDefault();               // evita foco/zoom del navegador
   const k = b.dataset.k;
   if (textMode) { // en modo texto el teclado numérico también escribe en el input
     if (k === 'ok') return submitDni(textDni.value);
-    if (k === 'del') textDni.value = textDni.value.slice(0, -1); else textDni.value += b.textContent;
+    if (k === 'del') textDni.value = textDni.value.slice(0, -1);
+    else if (textDni.value.length < 20) textDni.value += b.textContent;
     return;
   }
   if (k === 'ok') return submitDni(dniBuf);
   if (k === 'del') dniBuf = dniBuf.slice(0, -1);
   else if (dniBuf.length < 12) dniBuf += b.textContent;
   renderDni();
-}
-const padEl = document.getElementById('pad');
-if (window.PointerEvent) padEl.addEventListener('pointerdown', padPress);
-else padEl.addEventListener('click', padPress);       // navegadores muy antiguos
-// En iOS el 2.º toque rápido sobre el teclado se interpreta como zoom: se cancela el touchend.
-padEl.addEventListener('touchend', e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
-// Bloquea el zoom por pellizco y por doble toque en toda la app (Safari ignora maximum-scale)
-['gesturestart', 'gesturechange', 'gestureend'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
-let lastTouchEnd = 0;
-document.addEventListener('touchend', e => {
-  const now = Date.now();
-  if (now - lastTouchEnd < 350 && e.cancelable && !e.target.closest('input,select,textarea')) e.preventDefault();
-  lastTouchEnd = now;
-}, { passive: false });
+  if (autoSend.checked && dniBuf.length === 8) submitDni(dniBuf);
+});
 
 // Teclado físico / Bluetooth también funciona
 document.addEventListener('keydown', e => {
-  if (document.getElementById('view-scan').classList.contains('hidden') || textMode || busy) return;
-  if (/^\d$/.test(e.key)) { if (dniBuf.length < 12) dniBuf += e.key; renderDni(); }
+  if (document.getElementById('view-scan').classList.contains('hidden') || textMode || busy || profileDialog.open || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName)) return;
+  if (/^\d$/.test(e.key) && dniBuf.length < 12) { dniBuf += e.key; renderDni(); if (autoSend.checked && dniBuf.length === 8) submitDni(dniBuf); }
   else if (e.key === 'Backspace') { dniBuf = dniBuf.slice(0, -1); renderDni(); }
   else if (e.key === 'Enter') submitDni(dniBuf);
 });
@@ -686,33 +560,40 @@ abcBtn.addEventListener('click', () => {
   if (textMode) { textDni.value = ''; textDni.focus(); }
 });
 textDni.addEventListener('keydown', e => { if (e.key === 'Enter') submitDni(textDni.value); });
+autoSend.checked = store.get(LS.auto, true);
+autoSend.addEventListener('change', () => store.set(LS.auto, autoSend.checked));
 withKit.checked = store.get(LS.kit, false);
 withKit.addEventListener('change', () => store.set(LS.kit, withKit.checked));
 
-async function submitDni(raw) {
+async function submitDni(raw, fromProfile = false) {
   const dni = normDni(raw);
-  if (!dni || busy) return;
+  if (!active || !dni || busy || profileDialog.open) return;
   busy = true;
   dniBuf = ''; renderDni(); textDni.value = '';
 
-  // ts = hora de captura: si queda en cola offline, el servidor lo asigna al día/hora en que se registró
-  const payload = mode === 'checkin' ? { dni, withKit: withKit.checked, ts: Date.now() } : { dni, ts: Date.now() };
+  const action = mode;
+  const payload = { dni, ts: Date.now(), ...(action === 'checkin' ? { withKit: withKit.checked } : {}) };
   const local = LIST.map[dni];
 
   // UI optimista: si está en la lista local, el nombre aparece YA (0 red)
-  if (local) { showOverlay('var(--pend)', '⏳ REGISTRANDO…', local[0], local[1] || '', 20000); setCat(local[2]); }
+  if (local) showOverlay('var(--pend)', '⏳ REGISTRANDO…', local[0], local[1] || '', 20000);
   else showOverlay('#555', '…', 'Consultando servidor', 'DNI ' + dni + ' (no está en la lista local)', 20000);
 
   const t0 = performance.now();
   try {
-    const r = await api(mode, payload, 8000); // señal mala: a los 8 s pasa a la cola y la puerta sigue atendiendo
+    const r = await api(action, payload);
     r._rtt = Math.round(performance.now() - t0);
     recordLatency(r._rtt, r.ms);
-    presentResult(r, mode, payload);
+    presentResult(r, action, payload);
+    if (!fromProfile && r.missing?.length) addProfileLink(r);
+    if (!fromProfile && r.status === 'CLOSED') {
+      const found = await api('lookup', { dni }).catch(() => null);
+      if (found?.missing?.length) addProfileLink(found);
+    }
     if (!local && r.nombre) refreshList(); // inscrito recientemente en otra mesa → actualiza lista
   } catch (e) {
     if (isNetworkError(e)) {
-      enqueue({ action: mode, payload });
+      try { enqueue({ action, payload }); } catch (err) { alertBox(err.message); return; }
       beep('dup');
       const nm = local ? local[0] : 'DNI ' + dni;
       const sub = !local ? '⚠ No figura en la lista local: verifique luego'
@@ -723,9 +604,6 @@ async function submitDni(raw) {
     } else {
       presentResult({ status: 'ERROR', msg: e.message }, mode);
     }
-  } finally {
-    // "Ingreso + Kit" es por persona: se desmarca tras cada registro para no entregar kits por error
-    if (payload.withKit) { withKit.checked = false; store.set(LS.kit, false); }
   }
 }
 
@@ -733,42 +611,39 @@ async function submitDni(raw) {
    INSCRIPCIÓN
    ===================================================================== */
 async function registerSubmit() {
+  if (!active || operatorRole !== 'inscriptor' || busy) return;
+  
   const payload = {
-    dni: normDni(rDni.value), nombre: rNombre.value.trim(), institucion: rInst.value.trim(), categoria: rCat.value.trim().toUpperCase(),
+    dni: normDni(rDni.value), nombre: rNombre.value.trim(), institucion: rInst.value.trim(),
     correo: rCorreo.value.trim(), celular: rCel.value.trim(),
     markAttendance: rAsist.checked, ts: Date.now()
   };
-  if (!payload.dni || !payload.nombre || !payload.categoria) { alertBox('DNI, nombre y categoría son obligatorios'); return; }
+  if (!payload.dni || !payload.nombre) { alertBox('DNI y nombre son obligatorios'); return; }
+  busy = true;
   try {
     showOverlay('#555', '…', 'Inscribiendo', '', 20000);
     const r = await api('register', payload);
     hideOverlay();
     if (r.status === 'OK' || r.status === 'DUPLICATE') {
       beep(r.status === 'OK' ? 'ok' : 'dup');
-      LIST.map[r.dni] = [r.nombre, r.institucion, r.categoria || '']; saveList();
-      showRegDone(r.status === 'OK' ? 'Inscrito ✔' : 'Ya estaba inscrito', r.nombre, r.dni, r.msg);
+      LIST.map[r.dni] = [r.nombre, r.institucion];
+      showRegDone(r.status === 'OK' ? r.msg : 'Ya estaba inscrito', r.nombre, r.dni);
     } else presentResult(r, 'register');
   } catch (e) {
     hideOverlay();
     if (isNetworkError(e)) {
-      enqueue({ action: 'register', payload });
-      LIST.map[payload.dni] = [payload.nombre.toUpperCase(), payload.institucion, payload.categoria]; saveList();
+      try { enqueue({ action: 'register', payload }); } catch (err) { alertBox(err.message); return; }
+      LIST.map[payload.dni] = [payload.nombre.toUpperCase(), payload.institucion];
       showRegDone('Guardado sin conexión ⏳', payload.nombre.toUpperCase(), payload.dni);
     } else presentResult({ status: 'ERROR', msg: e.message }, 'register');
   }
 }
-/** Sugerencias de categoría = categorías existentes en la lista oficial (evita errores de tipeo). */
-function fillCategorias() {
-  const set = new Set(Object.values(LIST.map).map(v => v[2]).filter(Boolean));
-  catList.innerHTML = '';
-  [...set].sort().forEach(c => { const o = document.createElement('option'); o.value = c; catList.appendChild(o); });
-}
-function showRegDone(title, nombre, dni, msg) {
+function showRegDone(title, nombre, dni) {
   regForm.classList.add('hidden'); regDone.classList.remove('hidden');
-  regDoneTitle.textContent = title; regDoneName.textContent = nombre + ' · DNI ' + dni + (msg && msg.includes('NO marcada') ? '  ⚠ ' + msg.split('· ')[1] : '');
+  regDoneTitle.textContent = title; regDoneName.textContent = nombre + ' · DNI ' + dni;
 }
 function resetRegister() {
-  ['rDni', 'rNombre', 'rCat', 'rInst', 'rCorreo', 'rCel'].forEach(id => document.getElementById(id).value = '');
+  ['rDni', 'rNombre', 'rInst', 'rCorreo', 'rCel'].forEach(id => document.getElementById(id).value = '');
   regDone.classList.add('hidden'); regForm.classList.remove('hidden'); rDni.focus();
 }
 function alertBox(msg) { beep('err'); showOverlay('var(--err)', '✖', msg, '', 2500); }
@@ -789,7 +664,6 @@ function renderPerf() {
     ['Servidor p50', fmt(pct(perf.srv, .5))],
     ['Muestras', perf.rtt.length],
     ['Lista local', Object.keys(LIST.map).length],
-    ['Dispositivos registrados', SRV.disp || '–'],
   ]);
 }
 async function loadStats() {
@@ -802,50 +676,29 @@ async function loadStats() {
     recordLatency(Math.round(performance.now() - t0), r.ms);
     if (!r.ok) throw new Error(r.msg);
     const cells = [['Inscritos', r.total], ['Kits entregados', r.kits]];
-    if (r.sesiones) r.sesiones.forEach(x => cells.push([x.label, x.n]));
-    else r.dias.forEach((n, i) => cells.push(['Asistencia D' + (i + 1), n]));
+    r.dias.forEach((n, i) => cells.push(['Asistencia D' + (i + 1), n]));
+    (r.sesiones || []).filter(s => s.label.startsWith('Asistencia D3 ')).forEach(s => cells.push([s.label, s.n]));
     cells.push(['Inscritos en sitio', r.enSitio]);
     Object.keys(r.puertas || {}).sort().forEach(p => cells.push([p + ' · hoy', r.puertas[p]]));
     tiles(g, cells);
     renderPerf();
-  } catch (e) { g.innerHTML = '<div>Error: ' + e.message + '</div>'; }
+  } catch (e) { g.textContent = 'Error: ' + e.message; }
 }
 
 /* =====================================================================
    NAVEGACIÓN
    ===================================================================== */
 function show(view) {
-  ['login', 'session', 'scan', 'register', 'stats'].forEach(v => document.getElementById('view-' + v).classList.toggle('hidden', v !== view));
-  const logged = !!cfg.key;
-  document.getElementById('tabs').classList.toggle('hidden', !logged);
-  sessBtn.classList.toggle('hidden', !logged);
-  if (view === 'login') {
-    loginNombre.value = cfg.nombre || PREFILL.nombre || '';
-    loginPuerta.value = cfg.puerta != null && cfg.puerta !== '' && cfg.role ? cfg.puerta : (PREFILL.puerta || '');
-    loginClave.value = '';
+  ['config', 'scan', 'register', 'stats'].forEach(v => document.getElementById('view-' + v).classList.toggle('hidden', v !== view));
+  if (view === 'config') {
+    cfgApi.value = GAS ? '(integrada en Apps Script)' : DEFAULT_API;
+    cfgApi.disabled = true;
+    cfgKey.disabled = cfgPuerta.disabled = active;
+    cfgKey.value = cfg.key; cfgStaff.value = cfg.nombre || ''; cfgPuerta.value = cfg.puerta || '1';
   }
-  if (view === 'session') {
-    deviceReady.then(id => {
-      sessInfo.innerHTML = '';
-      [['Nombre', cfg.nombre], ['Puesto', cfg.puerta === '0' ? 'Mesa de inscripción' : 'Puerta ' + cfg.puerta],
-       ['Rol', cfg.role === 'inscriptor' ? 'Inscriptor (puede inscribir)' : 'Registrador de asistencia'],
-       ['Pendientes por sincronizar', queue().length], ['Dispositivo', id.slice(0, 8) + '…']].forEach(([k, v]) => {
-        const b = document.createElement('b'); b.textContent = k + ': '; sessInfo.append(b, String(v), document.createElement('br'));
-      });
-    });
-  }
-}
-function setRole(role) {
-  cfg.role = role; store.set(LS.cfg, cfg);
-  tabRegister.classList.toggle('hidden', role !== 'inscriptor');
-  if (role !== 'inscriptor' && mode === 'register') document.querySelector('#tabs button[data-mode="checkin"]').click();
-}
-function forceLogin(msg) {
-  cfg.key = ''; cfg.role = ''; store.set(LS.cfg, cfg);
-  show('login'); loginMsg.innerHTML = ''; const s = document.createElement('span'); s.className = 'err'; s.textContent = msg || ''; loginMsg.appendChild(s);
 }
 document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => {
-  if (!cfg.key) { show('login'); return; }
+  if (!active) { show('config'); return; }
   document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('active', x === b));
   mode = b.dataset.mode;
   if (mode === 'checkin' || mode === 'kit') {
@@ -853,78 +706,145 @@ document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click
     kitOpt.style.display = mode === 'kit' ? 'none' : '';
     dniBuf = ''; renderDni(); renderListInfo();
     show('scan');
-  } else if (mode === 'register') { fillCategorias(); show('register'); }
+  } else if (mode === 'register') show('register');
   else { show('stats'); loadStats(); }
 }));
 
-refreshBtn.addEventListener('click', () => refreshList(true));
+function updateSessionLabel(r) {
+  document.getElementById('sessionLabel').textContent = r.day && !r.test ? 'Día ' + r.day + ' · ' + (r.sesion || '') + ' ' + r.horarioTxt : 'Evento cerrado';
+}
 
-async function doLogin() {
-  const nombre = loginNombre.value.trim(), puerta = loginPuerta.value, clave = loginClave.value.trim().toUpperCase();
-  const fail = m => { loginMsg.innerHTML = ''; const s = document.createElement('span'); s.className = 'err'; s.textContent = m; loginMsg.appendChild(s); beep('err'); };
-  if (nombre.length < 3) return fail('Ingrese su nombre y apellido');
-  if (puerta === '') return fail('Seleccione su puerta');
-  if (!clave) return fail('Ingrese la clave de acceso');
-  loginBtn.disabled = true; loginMsg.textContent = 'Verificando…';
-  const prev = { ...cfg };
-  cfg = { ...cfg, key: clave, nombre, puerta };
+async function saveConfig() {
+  if (active || inFlight) return;
+  cfg = { api: GAS ? 'gas' : DEFAULT_API, key: cfgKey.value.trim(),
+    nombre: cfgStaff.value.trim(), puerta: cfgPuerta.value };
+  if (!cfg.api || !cfg.key || !cfg.nombre) { cfgMsg.textContent = 'Ingrese la clave y su nombre'; return; }
   cfg.staff = staffId(cfg);
+  cfgMsg.textContent = 'Verificando puesto…';
   try {
-    const t0 = performance.now();
     const r = await api('ping');
-    if (!r.ok) {
-      cfg = { ...prev, key: '', role: '' }; store.set(LS.cfg, cfg);
-      if (r.status === 'UNAUTHORIZED') return fail('Clave incorrecta');
-      if (r.status === 'DOOR_TAKEN') return fail('⛔ ' + r.msg);
-      if (r.status === 'DEVICE_LIMIT') return;               // ya se mostró la pantalla de bloqueo
-      return fail(r.msg || r.status);
-    }
-    store.set(LS.cfg, cfg);
-    recordLatency(Math.round(performance.now() - t0), r.ms);
-    applyPing(r);
+    if (!r.ok) throw new Error(r.msg || r.status);
+    active = true;
+    operatorRole = r.role;
+    store.set(LS.cfg, { nombre: cfg.nombre });
+    document.querySelector('[data-mode="register"]').classList.toggle('hidden', operatorRole !== 'inscriptor');
+    updateSessionLabel(r);
     hdrStaff.textContent = '· ' + cfg.staff;
-    loginMsg.textContent = '✔ Acceso concedido · descargando lista…';
-    await refreshList();
-    beep('ok');
+    cfgMsg.textContent = 'Sesión iniciada';
     document.querySelector('#tabs button[data-mode="checkin"]').click();
+    refreshList();
+    retryAfter = 0;
     flushQueue();
-  } catch (e) {
-    cfg = { ...prev, key: '', role: '' }; store.set(LS.cfg, cfg);
-    fail(isNetworkError(e) ? 'Sin conexión: el primer ingreso necesita internet' : e.message);
-  } finally { loginBtn.disabled = false; }
-}
-loginClave.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-
-async function doLogout() {
-  const n = queue().length;
-  if (n) { alertBox('Hay ' + n + ' registros pendientes de sincronizar. Espere a tener señal antes de cerrar sesión.'); return; }
-  // Libera la puerta en el servidor para que otro celular pueda tomarla (si no hay red, la libera el coordinador)
-  let liberada = false;
-  try { const r = await api('logout', {}, 6000); liberada = !!(r && r.ok); } catch {}
-  cfg.key = ''; cfg.role = ''; store.set(LS.cfg, cfg);
-  hdrStaff.textContent = ''; tabRegister.classList.add('hidden');
-  show('login'); loginMsg.textContent = liberada ? 'Sesión cerrada. La puerta quedó libre.' : 'Sesión cerrada (sin red: la puerta sigue asignada a este celular).';
+  } catch (e) { cfgMsg.textContent = e.message; }
 }
 
-/* =====================================================================
-   INICIO
-   ===================================================================== */
-(async function init() {
-  setNet(navigator.onLine); renderQueue(); renderListInfo();
-  await recoverStorage();
-  hdrStaff.textContent = cfg.key ? '· ' + cfg.staff : '';
-  if (!cfg.key) { show('login'); return; }
-  setRole(cfg.role || 'registrador');
-  document.querySelector('#tabs button[data-mode="checkin"]').click();
+logoutBtn.onclick = async () => {
+  if (!active || flushing || inFlight || busy) { cfgMsg.textContent = 'Espere a que termine la operación en curso'; return; }
+  if (queue().some(it => it.slot === cfg.puerta && it.staff === cfg.staff && !it.rejected)) {
+    cfgMsg.textContent = 'Hay registros pendientes de esta sesión. Sincronícelos antes de salir.';
+    retryAfter = 0;
+    flushQueue();
+    return;
+  }
+  active = false;
   try {
-    const t0 = performance.now();
-    const r = await api('ping');                       // si la clave cambió, checkBlocked() lleva al acceso
-    if (r.ok) { applyPing(r); recordLatency(Math.round(performance.now() - t0), r.ms); }
-  } catch {}
-  if (!cfg.key) return;
-  refreshList();
-  flushQueue();
-})();
+    const r = await api('logout');
+    if (!r.ok) throw new Error(r.msg || r.status);
+    LIST = { at: 0, map: {} };
+    document.getElementById('hist').replaceChildren();
+    personMatches.replaceChildren();
+    personQuery.value = '';
+    resetRegister();
+    profileFields.replaceChildren();
+    profileRecord = null;
+    lastOk = null;
+    hdrStaff.textContent = '';
+    cfg.key = '';
+    show('config');
+    cfgMsg.textContent = 'Sesión cerrada. El puesto y el cupo quedaron libres.';
+  } catch (e) { active = true; cfgMsg.textContent = e.message; }
+};
+
+function openProfile(record) {
+  profileRecord = record;
+  profileTitle.textContent = record.nombre || 'Datos del inscrito';
+  profileMissing.textContent = record.missing.length ? 'Faltan: ' + record.missing.join(', ') : 'Datos completos';
+  profileStatus.textContent = '';
+  profileFields.replaceChildren();
+  record.fields.filter(field => field.mapped).forEach(field => {
+    const label = document.createElement('label');
+    label.textContent = field.label;
+    const input = document.createElement('input');
+    input.name = field.label;
+    input.value = field.value;
+    input.maxLength = 250;
+    input.disabled = field.label === 'NOMBRES CORREGIDOS' || (!!field.value && !['DNI/PASAPORTE', 'NOMBRES'].includes(field.label));
+    if (field.label === 'CORREO') input.type = 'email';
+    label.append(input);
+    profileFields.append(label);
+  });
+  profileContinue.disabled = !record.dni;
+  if (!profileDialog.open) profileDialog.showModal();
+}
+
+function addProfileLink(record) {
+  const link = document.createElement('button');
+  link.type = 'button';
+  link.textContent = 'Completar datos: ' + record.missing.join(', ');
+  link.onclick = () => openProfile(record);
+  document.querySelector('#hist li')?.append(link);
+  const sub = document.getElementById('ovSub');
+  sub.append(document.createElement('br'), link.cloneNode(true));
+  sub.lastChild.onclick = event => { event.stopPropagation(); hideOverlay(); openProfile(record); };
+}
+
+profileClose.onclick = () => profileDialog.close();
+profileContinue.onclick = () => {
+  const dni = profileRecord.dni;
+  profileDialog.close();
+  submitDni(dni, true);
+};
+profileForm.onsubmit = async event => {
+  event.preventDefault();
+  const button = event.submitter;
+  button.disabled = true;
+  try {
+    const fields = Object.fromEntries(new FormData(profileForm));
+    const r = await api('complete', { row: profileRecord.row, ref: profileRecord.ref, fields });
+    if (!r.ok) throw new Error(r.msg || r.status);
+    openProfile(r);
+    profileStatus.textContent = 'Datos guardados';
+    refreshList();
+  } catch (error) { profileStatus.textContent = error.message; }
+  finally { button.disabled = false; }
+};
+
+nameSearch.onsubmit = async event => {
+  event.preventDefault();
+  if (!active) return;
+  const button = event.submitter;
+  button.disabled = true;
+  personMatches.textContent = 'Buscando…';
+  try {
+    const r = await api('search', { query: personQuery.value });
+    if (!r.ok) throw new Error(r.msg || r.status);
+    personMatches.replaceChildren();
+    if (!r.matches.length) personMatches.textContent = 'No se encontraron inscritos';
+    r.matches.forEach(person => {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.textContent = [person.nombre || person.fields[1].value, person.institucion, person.dni || 'Sin documento'].filter(Boolean).join(' · ');
+      option.onclick = () => openProfile(person);
+      personMatches.append(option);
+    });
+  } catch (error) { personMatches.textContent = error.message; }
+  finally { button.disabled = false; }
+};
+
+setNet(navigator.onLine);
+renderQueue();
+renderListInfo();
+show('config');
 </script>
 </body>
 </html>
