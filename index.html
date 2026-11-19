@@ -87,6 +87,7 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
 .lookup-result { margin-top:10px; padding:12px; border:1px solid var(--line); border-radius:10px; }
 .lookup-result p { margin:0 0 8px; }
 .lookup-result button { display:block; width:100%; min-height:44px; margin:6px 0 0; }
+#dniFicha[hidden], #editMissing[hidden] { display:none; }
 .lookup-result .missing-data { border-color:var(--brand); color:var(--brand); font-weight:700; }
 #cancelSession { width:100%; min-height:44px; margin-top:8px; }
 #participantData div { grid-template-columns:minmax(0, 42%) minmax(0, 1fr); }
@@ -154,7 +155,6 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
       </div>
       <div id="dniSearchPanel">
       <div id="dniDisplay" class="empty">Digite el DNI</div>
-      <dl id="preview" aria-live="polite"></dl>
       <input id="textDni" class="hidden" autocomplete="off" autocapitalize="characters" placeholder="CE / PASAPORTE">
       <div class="pad" id="pad">
         <button>1</button><button>2</button><button>3</button>
@@ -165,7 +165,12 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
       <div class="opts">
         <button class="ghost" id="abcBtn" style="padding:6px 10px">ABC · CE/Pasaporte</button>
       </div>
-      <button id="dniLookupBtn" class="primary search-submit" type="button">Buscar inscrito</button>
+      <section id="dniFicha" class="lookup-result" hidden>
+        <strong>Ficha de inscripción</strong>
+        <dl id="preview" aria-live="polite"></dl>
+        <button id="editMissing" class="ghost missing-data" type="button" hidden></button>
+      </section>
+      <button id="dniLookupBtn" class="primary search-submit" type="button">Registrar</button>
       <p id="dniLookupStatus" role="status"></p>
       <div id="dniLookupResult"></div>
       <button id="dniOfflineBtn" class="ghost" type="button" hidden>Registrar sin conexión</button>
@@ -395,7 +400,7 @@ async function refreshList() {
       return {dni,nombre,alias,row,categoria,institucion,correo,celular,search:foldName(nombre+' '+alias),missing:rosterLabels.filter((_,j)=>mask & (1<<j))};
     });
     LIST = {at:Date.now(),map,rows};
-    renderDocumentPreview(dniBuf);
+    renderDocumentPreview(textMode ? textDni.value : dniBuf);
   } catch { rosterError = 'No se pudo actualizar. '; }
   finally { updateRoster.disabled = false; renderListInfo(); }
 }
@@ -594,17 +599,39 @@ function renderDni() {
   d.textContent = dniBuf || 'Digite el DNI';
   d.classList.toggle('empty', !dniBuf);
   // Vista previa en vivo mientras digita (búsqueda local O(1) en el hash map)
-  renderDocumentPreview(dniBuf);
+  renderDocumentPreview(textMode ? textDni.value : dniBuf);
 }
 
 function renderDocumentPreview(raw) {
   const preview = document.getElementById('preview');
   preview.replaceChildren();
-  if (!/^\d{8,}$/.test(raw) || !LIST.rows) return;
-  const matches = LIST.rows.filter(person => person.dni === raw);
-  if (matches.length > 1) { preview.textContent = 'Documento repetido. Pulse Buscar inscrito para revisar las coincidencias.'; return; }
-  if (!matches.length) return;
+  const ficha = document.getElementById('dniFicha');
+  const edit = document.getElementById('editMissing');
+  ficha.hidden = true;
+  edit.hidden = true;
+  edit.onclick = null;
+  if (textMode ? !/^[A-Za-z0-9][A-Za-z0-9. -]{5,19}$/.test(raw.trim()) : !/^\d{8}$/.test(raw)) return;
+  const dni = normDni(raw);
+  const matches = LIST.rows.filter(person => person.dni === dni);
+  if (matches.length !== 1) return;
   const p = matches[0];
+  ficha.hidden = false;
+  if (p.missing.length) {
+    edit.hidden = false;
+    edit.disabled = false;
+    edit.textContent = 'Completar datos faltantes: ' + p.missing.join(', ');
+    edit.onclick = async () => {
+      edit.disabled = true;
+      const current = () => !ficha.hidden && !dniPanel.hidden && !busy && normDni(textMode ? textDni.value : dniBuf) === dni;
+      try {
+        const full = await api('profileAt', {row:p.row,dni,nombre:p.nombre,alias:p.alias});
+        if (!current()) return;
+        if (!full.ok) throw new Error(full.msg || 'No se pudo abrir la ficha.');
+        openProfile(full);
+      } catch (error) { if (current()) lookupStatus.textContent = error.message; }
+      finally { edit.disabled = false; }
+    };
+  }
   for (const [label,value] of [['Nombres',p.nombre || p.alias],['Categoría',p.categoria],['Institución',p.institucion],['Correo',p.correo],['DNI',p.dni],['Celular',p.celular]]) {
     const row = document.createElement('div');
     const title = document.createElement('dt');
@@ -622,6 +649,7 @@ document.getElementById('pad').addEventListener('click', e => {
   if (textMode) { // en modo texto el teclado numérico también escribe en el input
     if (k === 'del') textDni.value = textDni.value.slice(0, -1);
     else if (textDni.value.length < 20) textDni.value += b.textContent;
+    textDni.dispatchEvent(new Event('input'));
     return;
   }
   if (k === 'del') dniBuf = dniBuf.slice(0, -1);
@@ -640,10 +668,11 @@ document.addEventListener('keydown', e => {
 abcBtn.addEventListener('click', () => {
   textMode = !textMode;
   dniDisplay.classList.toggle('hidden', textMode);
-  preview.classList.toggle('hidden', textMode);
+
   textDni.classList.toggle('hidden', !textMode);
   abcBtn.textContent = textMode ? '123 · DNI' : 'ABC · CE/Pasaporte';
   if (textMode) { textDni.value = ''; textDni.focus(); }
+  renderDni();
 });
 textDni.addEventListener('keydown', e => { if (e.key === 'Enter') lookupDni(); });
 
@@ -651,7 +680,7 @@ async function submitDni(raw, fromProfile = false) {
   const dni = normDni(raw);
   if (!active || !dni || busy || profileDialog.open) return;
   busy = true;
-  dniBuf = ''; renderDni(); textDni.value = '';
+  dniBuf = ''; textDni.value = ''; renderDni();
 
   const action = mode;
   const payload = { dni, ts: Date.now(), ...(action === 'checkin' ? { withKit: withKit.checked } : {}) };
@@ -790,6 +819,7 @@ document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click
   mode = b.dataset.mode;
   if (mode === 'checkin' || mode === 'kit') {
     scanTitle.textContent = mode === 'kit' ? 'Entrega de kit' : 'Asistencia';
+    lookupButton.textContent = mode === "kit" ? "Registrar entrega de kit" : "Registrar";
     kitOpt.style.display = mode === 'kit' ? 'none' : '';
     dniBuf = ''; renderDni(); renderListInfo();
     show('scan');
@@ -1029,6 +1059,7 @@ dniToggle.onclick = () => showSearch(false);
 nameToggle.onclick = () => showSearch(true);
 lookupButton.onclick = lookupDni;
 textDni.addEventListener('input', () => {
+  renderDocumentPreview(textDni.value);
   document.getElementById('dniLookupResult').replaceChildren();
   offlineDni = '';
   offlineButton.hidden = true;
@@ -1054,6 +1085,7 @@ async function lookupDni() {
   }
   const dni = normDni(raw);
   const hits=LIST.rows.filter(p=>p.dni===dni);
+  if (hits.length === 1) return submitDni(dni);
   document.getElementById('dniLookupResult').replaceChildren(...hits.map(renderLookupResult));
   lookupStatus.textContent=hits.length>1?'Documento repetido. Verifique la ficha antes de registrar.':hits.length?'':'Sin coincidencias en el celular. Pulse Actualizar padrón.';
 }
@@ -1075,3 +1107,4 @@ show('config');
 </script>
 </body>
 </html>
+
