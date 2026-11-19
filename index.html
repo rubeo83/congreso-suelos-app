@@ -70,6 +70,15 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
 #nameSearch button { width:100%; min-height:44px; margin-top:8px; }
 #personMatches:not(:empty) { margin-top:12px; }
 #personMatches button { display:block; width:100%; min-height:48px; margin:6px 0; text-align:left; overflow-wrap:anywhere; }
+#sessionMenuBtn { min-height:44px; padding:8px 12px; white-space:nowrap; }
+#sessionDialog { width:min(360px, calc(100% - 32px)); border:1px solid var(--line); border-radius:16px; padding:20px; color:var(--ink); }
+#sessionDialog::backdrop { background:rgb(0 0 0 / 45%); }
+#sessionTitle { margin:0 0 14px; font-size:20px; }
+.session-data { margin:0 0 16px; }
+.session-data div { display:grid; grid-template-columns:80px 1fr; gap:8px; padding:6px 0; }
+.session-data dt { color:var(--muted); }
+.session-data dd { margin:0; font-weight:600; overflow-wrap:anywhere; }
+#sessionStatus:empty { display:none; }
 </style>
 </head>
 <body>
@@ -79,7 +88,7 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
   <h1>Congreso de Suelos <small id="hdrStaff"></small></h1>
   <span class="pill" id="latBadge" title="Latencia promedio de los últimos registros">⏱ –</span>
   <span class="pill" id="queueBadge"></span>
-  <button class="ghost" style="padding:6px 10px" onclick="show('config')">⚙</button>
+  <button class="ghost" id="sessionMenuBtn" type="button" aria-haspopup="dialog" hidden>⚙ Mi sesión</button>
 </header>
 
 <nav id="tabs">
@@ -104,7 +113,6 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
       <input id="cfgStaff" placeholder="Ej. Ana Torres">
       <br><br>
       <button class="primary" onclick="saveConfig()">Guardar y probar conexión</button>
-      <button class="ghost" id="logoutBtn" type="button">Cerrar sesión y liberar puesto</button>
       <p id="cfgMsg" style="font-size:14px"></p>
     </div>
   </section>
@@ -161,6 +169,16 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
     </div>
   </section>
 
+  <dialog id="sessionDialog" aria-labelledby="sessionTitle">
+    <h2 id="sessionTitle">Mi sesión</h2>
+    <dl class="session-data">
+      <div><dt>Operador</dt><dd id="sessionOperator"></dd></div>
+      <div><dt>Rol</dt><dd id="sessionRole"></dd></div>
+      <div><dt>Puesto</dt><dd id="sessionSlot"></dd></div>
+    </dl>
+    <p id="sessionStatus" role="status"></p>
+    <button class="primary" id="logoutBtn" type="button">Cerrar sesión</button>
+  </dialog>
   <dialog id="profileDialog">
     <form id="profileForm">
       <h3 id="profileTitle">Datos del inscrito</h3>
@@ -225,7 +243,7 @@ html, body, button, input, select, dialog { touch-action:manipulation; }
 /* =====================================================================
    ESTADO Y CONFIG
    ===================================================================== */
-const LS = { cfg: 'cs_cfg', queue: 'cs_queue', day: 'cs_day', kit: 'cs_withkit', list: 'cs_list' };
+const LS = { cfg: 'cs_cfg', queue: 'cs_queue', day: 'cs_day', list: 'cs_list' };
 const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
@@ -580,8 +598,6 @@ abcBtn.addEventListener('click', () => {
   if (textMode) { textDni.value = ''; textDni.focus(); }
 });
 textDni.addEventListener('keydown', e => { if (e.key === 'Enter') lookupDni(); });
-withKit.checked = store.get(LS.kit, false);
-withKit.addEventListener('change', () => store.set(LS.kit, withKit.checked));
 
 async function submitDni(raw, fromProfile = false) {
   const dni = normDni(raw);
@@ -602,6 +618,7 @@ async function submitDni(raw, fromProfile = false) {
     const r = await api(action, payload);
     r._rtt = Math.round(performance.now() - t0);
     recordLatency(r._rtt, r.ms);
+    if (r.ok && payload.withKit) withKit.checked = false;
     presentResult(r, action, payload);
     if (!fromProfile && r.missing?.length) addProfileLink(r);
     if (!fromProfile && r.status === 'CLOSED') {
@@ -612,10 +629,11 @@ async function submitDni(raw, fromProfile = false) {
   } catch (e) {
     if (isNetworkError(e)) {
       try { enqueue({ action, payload }); } catch (err) { alertBox(err.message); return; }
+      if (payload.withKit) withKit.checked = false;
       beep('dup');
       const nm = local ? local[0] : 'DNI ' + dni;
       const sub = !local ? '⚠ No figura en la lista local: verifique luego'
-        : mode === 'kit' || withKit.checked ? 'Guardado en cola. ¡Ojo! sin red no se valida si ya recibió kit'
+        : action === 'kit' || payload.withKit ? 'Guardado en cola. ¡Ojo! sin red no se valida si ya recibió kit'
         : 'Guardado en cola, se sincroniza solo';
       showOverlay('#e67e22', '⏳ SIN CONEXIÓN', nm, sub, 3500);
       addHistory({ status: 'QUEUED', dni, nombre: local && local[0] }, mode);
@@ -743,6 +761,7 @@ async function saveConfig() {
     const r = await api('ping');
     if (!r.ok) throw new Error(r.msg || r.status);
     active = true;
+    sessionMenuBtn.hidden = false;
     operatorRole = r.role;
     store.set(LS.cfg, { nombre: cfg.nombre });
     document.querySelector('[data-mode="register"]').classList.toggle('hidden', operatorRole !== 'inscriptor');
@@ -756,15 +775,32 @@ async function saveConfig() {
   } catch (e) { cfgMsg.textContent = e.message; }
 }
 
+sessionMenuBtn.onclick = () => {
+  if (!active || sessionDialog.open) return;
+  sessionOperator.textContent = cfg.nombre;
+  sessionRole.textContent = operatorRole === 'inscriptor' ? 'Inscriptor' : 'Registrador';
+  sessionSlot.textContent = (cfg.puerta.startsWith('M') ? 'Mesa ' : 'Puerta ') + cfg.puerta.slice(1);
+  sessionStatus.textContent = '';
+  sessionDialog.showModal();
+};
+sessionDialog.onclick = event => {
+  if (event.target !== sessionDialog) return;
+  const bounds = sessionDialog.getBoundingClientRect();
+  if (event.clientX < bounds.left || event.clientX > bounds.right ||
+      event.clientY < bounds.top || event.clientY > bounds.bottom) sessionDialog.close();
+};
+
 logoutBtn.onclick = async () => {
-  if (!active || flushing || inFlight || busy) { cfgMsg.textContent = 'Espere a que termine la operación en curso'; return; }
+  if (!active || flushing || inFlight || busy) { sessionStatus.textContent = 'Espere a que termine la operación en curso'; return; }
   if (queue().some(it => it.slot === cfg.puerta && it.staff === cfg.staff && !it.rejected)) {
-    cfgMsg.textContent = 'Hay registros pendientes de esta sesión. Sincronícelos antes de salir.';
+    sessionStatus.textContent = 'Hay registros pendientes de esta sesión. Sincronícelos antes de salir.';
     retryAfter = 0;
     flushQueue();
     return;
   }
   active = false;
+  logoutBtn.disabled = true;
+  sessionStatus.textContent = 'Cerrando sesión…';
   try {
     const r = await api('logout');
     if (!r.ok) throw new Error(r.msg || r.status);
@@ -777,10 +813,18 @@ logoutBtn.onclick = async () => {
     profileRecord = null;
     lastOk = null;
     hdrStaff.textContent = '';
+    sessionMenuBtn.hidden = true;
+    withKit.checked = false;
+    sessionDialog.close();
     cfg.key = '';
     show('config');
     cfgMsg.textContent = 'Sesión cerrada. El puesto y el cupo quedaron libres.';
-  } catch (e) { active = true; cfgMsg.textContent = e.message; }
+  } catch (e) {
+    active = true;
+    sessionStatus.textContent = e.message;
+  } finally {
+    logoutBtn.disabled = false;
+  }
 };
 
 function openProfile(record) {
